@@ -8,6 +8,7 @@ composer.phar
 .env
 compose.yml
 .docker
+.env.local
 database.sql
 pictures
 pictures_temp
