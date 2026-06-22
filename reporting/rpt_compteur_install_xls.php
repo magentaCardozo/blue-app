@@ -24,7 +24,12 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
+
+
 $database = new Database();
+$drawing = new Drawing();
+
+
 $db = $database->getConnection();
 $utilisateur = new Utilisateur($db);
 $droits = new Droits();
@@ -129,6 +134,44 @@ try {
 	$objPHPExcel->setActiveSheetIndex(0);
 	$newsheet = $objPHPExcel->getActiveSheet();
 	$newsheet->setTitle("SYNTHESE");
+
+
+// Create drawing object
+$drawing->setName('Logo');
+$drawing->setDescription('Company Logo');
+$drawing->setPath(__DIR__ . '\images\logo2.png'); // <-- path to your image
+$drawing->setHeight(100); // adjust size
+$drawing->setWidth(180); // 👈 control length (width)
+$drawing->setCoordinates('A1'); // position image
+$drawing->setWorksheet($newsheet);
+
+
+$range = 'G1:L6';
+
+$text =
+"Société Anonyme avec Conseil d’Administration
+Adresse : Galerie Gombe River
+Avenue des forces armées n°1022
+Commune de la Gombe
+Kinshasa R. D. C";
+
+$newsheet->mergeCells($range);
+
+$newsheet->setCellValue('G1', $text);
+
+// STYLE
+$style = $newsheet->getStyle($range);
+
+// Bold
+$style->getFont()->setBold(true)->setSize(12);;
+
+// Align right (horizontal + vertical)
+$style->getAlignment()
+    ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
+    ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+
+// Wrap text (important for multiline)
+$style->getAlignment()->setWrapText(true);
 
 	foreach ($liste_site as $site_item) {
 		$site_classe->code_site = $site_item;
@@ -468,17 +511,45 @@ try {
 
 
 
-				$rowNumber = 1; //start in row 1
+
+				$rowNumber = 7; //start in row 7
 
 				$col = 'A'; // start at column A
 				$newsheet = $objPHPExcel->createSheet();
-				$newsheet->setCellValue("A1", $site_classe->intitule_site . " :  INSTALLATION NOUVEAUX COMPTEURS A PREPAIEMENT ( CVS " . $cvs_item["libelle"] . ') ' . count($data_) . " Compteurs");
-				cellStyle($newsheet, 'A1', 14);
-				$cell = 'Période : du ' . $du_ . ' au ' . $au_;
-				$rowNumber++;
-				$newsheet->setCellValue($col . $rowNumber, $cell);
-				cellStyle($newsheet, $col . $rowNumber, 13);
-				$rowNumber++;
+$newsheet->setCellValue(
+    "A7",
+    $site_classe->intitule_site .
+    " : INSTALLATION NOUVEAUX COMPTEURS A PREPAIEMENT ( CVS " .
+    $cvs_item["libelle"] . ') ' .
+    count($data_) . " Compteurs"
+);
+
+// 👉 Apply style correctly (background + font)
+$range = 'A7:I7'; // adjust O to your last column
+
+$newsheet->getStyle($range)->getFill()
+    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+    ->getStartColor()->setARGB('FFE0D5BD');
+
+$newsheet->getStyle($range)->getFont()->setSize(14)->setBold(true);
+
+
+// PERIOD LINE
+$cell = 'Période : du ' . $du_ . ' au ' . $au_;
+
+$rowNumber++;
+$range = 'A8:I8'; // adjust O to your last column
+
+$newsheet->setCellValue($col . $rowNumber, $cell);
+
+// 👉 Correct background style (must include FILL_SOLID)
+$newsheet->getStyle($range)->getFill()
+    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+    ->getStartColor()->setARGB('FFE0D5BD');
+
+$newsheet->getStyle($range)->getFont()->setSize(13)->setBold(true);
+
+$rowNumber++;
 				/*
 				//Add a picture for the header. Valid in office. Invalid in wps. Anchor: bbb
 				$objDrawing = new PHPExcel_Worksheet_HeaderFooterDrawing();
@@ -497,6 +568,16 @@ try {
 
 				// Rename worksheet
 				$newsheet->setTitle(sanitizeSheetTitle($cvs_item["libelle"]));
+$drawing = new Drawing();
+$drawing->setName('Logo');
+$drawing->setDescription('Company Logo');
+$drawing->setPath(__DIR__ . '\images\logo2.png'); // <-- path to your image
+$drawing->setHeight(100); // adjust size
+$drawing->setWidth(180); // 👈 control length (width)
+$drawing->setCoordinates('A1'); // position image
+$drawing->setWorksheet($newsheet);
+
+
 				$rowNumber++;
 
 				//ENTETES PRINCIPALES
@@ -562,13 +643,13 @@ try {
 				$newsheet->getColumnDimension('R')->setAutoSize(true); // Content adaptation 
 
 				$col = 'A'; // start at column A
-				foreach ($headers_ as $cell) {
-					$newsheet->setCellValue($col . $rowNumber, $cell);
-					cellBorder($newsheet, $col . $rowNumber);
-					cellStyle($newsheet, $col . $rowNumber, 10);
-					$col++;
-				}
-				$rowNumber++;
+foreach ($headers_ as $cell) { 
+	$newsheet->setCellValue($col . $rowNumber, $cell); 
+	cellBorder($newsheet, $col . $rowNumber); 
+	cellStyle($newsheet, $col . $rowNumber, 10); 
+	$col++; 
+	} 
+	$rowNumber++;
 				$ctr_context = 1;
 				foreach ($data_ as $row_) {
 
@@ -693,6 +774,27 @@ try {
 					$newsheet->setCellValue($col . $rowNumber, $row_["num_serie_cpteur_replaced"]);
 					cellBorder($newsheet, $col . $rowNumber);
 					$col++;
+
+	if ($rowNumber % 2 == 0) {
+
+    // Define full row range (IMPORTANT: adjust last column)
+    $rowRange = 'A' . $rowNumber . ':T' . $rowNumber;
+
+    // Background color
+    $newsheet->getStyle($rowRange)->getFill()
+        ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+        ->getStartColor()->setARGB('FFD6E2F0');
+
+    // Top border (double + orange)
+    $newsheet->getStyle($rowRange)->getBorders()->getTop()
+        ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_DOUBLE)
+        ->getColor()->setARGB('FFFFA500');
+
+    // Bottom border (double + orange)
+    $newsheet->getStyle($rowRange)->getBorders()->getBottom()
+        ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_DOUBLE)
+        ->getColor()->setARGB('FFFFA500');
+}
 
 					$ctr_context++;
 					$rowNumber++;
