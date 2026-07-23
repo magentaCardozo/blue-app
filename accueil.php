@@ -186,6 +186,192 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 			padding-bottom: 90px;
 			margin-top: -104px;
 		}
+
+		/* Styles pour les cartes CVS */
+		.cvs-card {
+			cursor: pointer;
+			transition: all 0.3s ease;
+			border: 1px solid #e9ecef;
+			border-radius: 10px;
+			overflow: hidden;
+		}
+
+		.cvs-card:hover {
+			box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+			transform: translateY(-2px);
+		}
+
+		.cvs-card .card-header {
+			background: #f8f9fa;
+			padding: 15px 20px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			border-bottom: 1px solid #e9ecef;
+		}
+
+		.cvs-card .card-header h5 {
+			margin: 0;
+			font-weight: 600;
+			color: #2d3748;
+		}
+
+		.cvs-card .btn-toggle {
+			background: transparent;
+			color: #94a3b8;
+			border: none;
+			padding: 5px 8px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.3s ease;
+			font-size: 1rem;
+			cursor: pointer;
+		}
+
+		.cvs-card .btn-toggle:hover {
+			color: #5969ff;
+		}
+
+		.cvs-card .btn-toggle.expanded {
+			transform: rotate(180deg);
+		}
+
+		.cvs-card .btn-toggle i {
+			font-size: 1.1rem;
+			transition: transform 0.3s ease;
+		}
+
+		.cvs-card .card-body {
+			padding: 0;
+			max-height: 0;
+			overflow: hidden;
+			transition: max-height 0.3s ease, padding 0.3s ease;
+		}
+
+		.cvs-card .card-body.show {
+			max-height: 500px;
+			padding: 20px;
+		}
+
+		.cvs-card .detail-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 0;
+			border-bottom: 1px solid #f1f3f5;
+		}
+
+		.cvs-card .detail-item:last-child {
+			border-bottom: none;
+		}
+
+		.cvs-card .detail-item .label {
+			color: #6c757d;
+			font-weight: 500;
+		}
+
+		.cvs-card .detail-item .value {
+			font-weight: 600;
+			font-size: 1.1rem;
+		}
+
+		.cvs-identif-text { color: #dc3545; }
+		.cvs-install-text { color: #2ec551; }
+		.cvs-control-text { color: #5969ff; }
+		.cvs-replace-text { color: #d359ff; }
+
+		.text-card {
+			color: #2d3748;
+		}
+
+		/* Styles pour la recherche */
+		.search-wrapper {
+			position: relative;
+			max-width: 400px;
+		}
+
+		.search-wrapper .form-control {
+			padding-right: 45px;
+			border-radius: 30px;
+			border: 1px solid #e2e8f0;
+			background: #f8fafc;
+			transition: all 0.3s ease;
+		}
+
+		.search-wrapper .form-control:focus {
+			background: #ffffff;
+			border-color: #cbd5e1;
+			box-shadow: 0 0 0 3px rgba(89, 105, 255, 0.1);
+		}
+
+		.search-wrapper .form-control::placeholder {
+			color: #a0aec0;
+			font-size: 0.9rem;
+		}
+
+		.btn-filter {
+			position: absolute;
+			right: 8px;
+			top: 50%;
+			transform: translateY(-50%);
+			background: transparent;
+			border: none;
+			color: #94a3b8;
+			padding: 5px 10px;
+			font-size: 0.9rem;
+			transition: all 0.3s ease;
+			cursor: pointer;
+		}
+
+		.btn-filter:hover {
+			color: #5969ff;
+		}
+
+		.btn-filter i {
+			font-size: 1rem;
+		}
+
+		.btn-filter .badge-filter {
+			position: absolute;
+			top: -5px;
+			right: -5px;
+			background: #5969ff;
+			color: white;
+			border-radius: 50%;
+			width: 18px;
+			height: 18px;
+			font-size: 0.6rem;
+			display: none;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.btn-filter .badge-filter.active {
+			display: flex;
+		}
+
+		.cvs-item.hidden {
+			display: none !important;
+		}
+
+		.empty-state {
+			text-align: center;
+			padding: 40px 20px;
+			color: #94a3b8;
+		}
+
+		.empty-state i {
+			font-size: 3rem;
+			margin-bottom: 15px;
+			display: block;
+			color: #cbd5e1;
+		}
+
+		.filter-count {
+			color: #94a3b8;
+			font-size: 0.9rem;
+		}
 	</style>
 </head>
 
@@ -395,31 +581,6 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 											?>
 										</h5>
 									</div>
-									<!-- <div class="card ticket-annule">
-										<div class="card-body">
-											<h5 class="text-muted">IDENTIFICATION</h5>
-											<div class="metric-value d-inline-block">
-												<h1 class="mb-1 text-white"><?php
-																			if ($site == $MULTI_ACCESS_SITE_CODE) {
-																				echo $cacher->get(['get-all-compteur-identified', $utilisateur->code_utilisateur, $du, $au], function () use ($dashview, $utilisateur, $du, $au, $site) {
-																					return  $dashview->GetAll_CompteurIdentified($utilisateur, $du, $au);
-																				});
-																			} else {
-																				echo $cacher->get(['get-site-compteur-identified', $utilisateur->code_utilisateur, $du, $au], function () use ($dashview, $utilisateur, $du, $au, $site) {
-																					return  $dashview->GetSite_CompteurIdentified($utilisateur, $site, $du, $au);
-																				});
-																			}
-
-																			?></h1>
-
-
-											</div>
-											<div class="metric-label d-inline-block float-right text-success font-weight-bold">
-
-											</div>
-										</div>
-
-									</div> -->
 								</div>
 
 								<div class="col-xl-3 col-lg-6 col-md-6 col-sm-12 col-12">
@@ -449,19 +610,6 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 											?>
 										</h5>
 									</div>
-									<!-- <div class="card ticket-produit">
-										
-										<div class="card-body">
-											<h5 class="text-muted">INSTALLATION</h5>
-											<div class="metric-value d-inline-block">
-												<h1 class="mb-1 text-white"></h1>
-											</div>
-											<div class="metric-label d-inline-block float-right text-success font-weight-bold">
-
-											</div>
-										</div>
-
-									</div> -->
 								</div>
 								<div class="col-xl-3 col-lg-6 col-md-6 col-sm-12 col-12">
 									<div class="card card-1 card-widget">
@@ -492,16 +640,6 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 											?>
 										</h5>
 									</div>
-									<!-- <div class="card ticket-total">
-										<div class="card-body">
-											<h5 class="text-muted">CONTROLE</h5>
-											<div class="metric-value d-inline-block">
-												<h1 class="mb-1 text-white"></h1>
-											</div>
-											<div class="metric-label d-inline-block float-right text-success font-weight-bold">
-											</div>
-										</div>
-									</div> -->
 								</div>
 								<div class="col-xl-3 col-lg-6 col-md-6 col-sm-12 col-12">
 									<div class="card card-1 card-widget">
@@ -532,16 +670,6 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 											?>
 										</h5>
 									</div>
-									<!-- <div class="card" style="background-color: #d359ff;color: #fff !important;">
-										<div class="card-body">
-											<h5 style="color: #fff !important;">REMPLACEMENT</h5>
-											<div class="metric-value d-inline-block">
-												<h1 class="mb-1 text-white"></h1>
-											</div>
-											<div class="metric-label d-inline-block float-right text-success font-weight-bold">
-											</div>
-										</div>
-									</div> -->
 								</div>
 
 
@@ -568,105 +696,96 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 
 								<div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
 									<div class="card card-table-lg">
-										<h3 class="section-title mb-4 d-flex align-items-center">Synthèse par CVS<span class="badge badge-secondary ml-3"><?php echo $nbre_synthese; ?></span></h3>
-										<div class="row">
-											<?php
+										<div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+											<h3 class="section-title mb-0 d-flex align-items-center">
+												Synthèse par CVS
+												<span class="badge badge-secondary ml-3" id="cvsTotalCount"><?php echo $nbre_synthese; ?></span>
+												<span class="filter-count ml-3" id="cvsFilterCount" style="display:none;">
+													<span id="cvsVisibleCount"><?php echo $nbre_synthese; ?></span> affiché(s)
+												</span>
+											</h3>
+											<div class="search-wrapper mt-2 mt-sm-0">
+												<input type="text" class="form-control" id="cvsSearchInput" placeholder="Rechercher un CVS...">
+												<button class="btn-filter" id="cvsFilterBtn" title="Filtrer les CVS">
+													<i class="fas fa-search"></i>
+													<span class="badge-filter" id="filterBadge">0</span>
+												</button>
+											</div>
+										</div>
+										<div class="card-body">
+											<div class="row" id="cvsContainer">
+												<?php
 
-											if ($site == $MULTI_ACCESS_SITE_CODE) {
-												foreach ($synthese as $item_site) {
-													foreach ($item_site as $item) {
-											?>
-														<div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 col-12">
-															<div class="card card-widget card-bg">
-																<div>
-																	<h6 class="mb-0 text-card"><?php echo $item["CVS"]; ?></h6>
+												if ($site == $MULTI_ACCESS_SITE_CODE) {
+													foreach ($synthese as $item_site) {
+														foreach ($item_site as $item) {
+												?>
+															<div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 col-12 mb-3 cvs-item" data-cvs-name="<?php echo strtolower($item["CVS"]); ?>">
+																<div class="cvs-card card">
+																	<div class="card-header">
+																		<h5><?php echo $item["CVS"]; ?></h5>
+																		<button class="btn-toggle" onclick="toggleCVS(this)">
+																			<i class="fas fa-chevron-down"></i>
+																		</button>
+																	</div>
+																	<div class="card-body">
+																		<div class="detail-item">
+																			<span class="label"><i class="fas fa-folder-open cvs-identif-text"></i> Identification</span>
+																			<span class="value cvs-identif-text"><?php echo $item["nbre_identification"]; ?></span>
+																		</div>
+																		<div class="detail-item">
+																			<span class="label"><i class="fas fa-handshake cvs-install-text"></i> Installation</span>
+																			<span class="value cvs-install-text"><?php echo $item["nbre_installation"]; ?></span>
+																		</div>
+																		<div class="detail-item">
+																			<span class="label"><i class="fas fa-edit cvs-control-text"></i> Contrôle</span>
+																			<span class="value cvs-control-text"><?php echo $item["nbre_controle"]; ?></span>
+																		</div>
+																	</div>
 																</div>
-																<div class="all-items d-flex flex-column">
-																	<div class="item d-flex align-items-center justify-content-between">
-																		<h4 class="mb-0 cvs-identif-text">Identification</h4>
-																		<p><?php echo $item["nbre_identification"];  ?></p>
+															</div>
+														<?php
+
+														}
+													}
+												} else {
+													foreach ($synthese as $item) {
+														?>
+														<div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 col-12 mb-3 cvs-item" data-cvs-name="<?php echo strtolower($item["CVS"]); ?>">
+															<div class="cvs-card card">
+																<div class="card-header">
+																	<h5><?php echo $item["CVS"]; ?></h5>
+																	<button class="btn-toggle" onclick="toggleCVS(this)">
+																		<i class="fas fa-chevron-down"></i>
+																	</button>
+																</div>
+																<div class="card-body">
+																	<div class="detail-item">
+																		<span class="label"><i class="fas fa-folder-open cvs-identif-text"></i> Identification</span>
+																		<span class="value cvs-identif-text"><?php echo $item["nbre_identification"]; ?></span>
 																	</div>
-																	<div class="item d-flex align-items-center justify-content-between">
-																		<h4 class="mb-0 cvs-install-text">Installation</h4>
-																		<p><?php echo $item["nbre_installation"];  ?></p>
+																	<div class="detail-item">
+																		<span class="label"><i class="fas fa-handshake cvs-install-text"></i> Installation</span>
+																		<span class="value cvs-install-text"><?php echo $item["nbre_installation"]; ?></span>
 																	</div>
-																	<div class="item d-flex align-items-center justify-content-between">
-																		<h4 class="mb-0 cvs-control-text">Contrôle</h4>
-																		<p><?php echo $item["nbre_controle"];  ?></p>
+																	<div class="detail-item">
+																		<span class="label"><i class="fas fa-edit cvs-control-text"></i> Contrôle</span>
+																		<span class="value cvs-control-text"><?php echo $item["nbre_controle"]; ?></span>
 																	</div>
 																</div>
-																<!-- <div class="pard-body">
-						
-					</div> -->
-																<!-- <div class="card-footer p-0 text-center d-flex justify-content-center ">
-						<div class="pard-footer-item pard-footer-item-bordered">
-							
-							
-						</div>
-						<div class="pard-footer-item pard-footer-item-bordered">
-							<h4 class="mb-0 cvs-install-text">Installation</h4>
-							<p><?php echo $item["nbre_installation"];  ?></p>
-						</div>
-						<div class="pard-footer-item pard-footer-item-bordered">
-							
-						</div>
-					</div> -->
 															</div>
 														</div>
-													<?php
+												<?php
 
 													}
 												}
-											} else {
-												foreach ($synthese as $item) {
-													?>
-													<div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 col-12">
-														<div class="card card-widget card-bg">
-															<div>
-																<h6 class="mb-0 text-card"><?php echo $item["CVS"]; ?></h6>
-															</div>
-															<div class="all-items d-flex flex-column">
-																<div class="item d-flex align-items-center justify-content-between">
-																	<h4 class="mb-0 cvs-identif-text">Identification</h4>
-																	<p><?php echo $item["nbre_identification"];  ?></p>
-																</div>
-																<div class="item d-flex align-items-center justify-content-between">
-																	<h4 class="mb-0 cvs-install-text">Installation</h4>
-																	<p><?php echo $item["nbre_installation"];  ?></p>
-																</div>
-																<div class="item d-flex align-items-center justify-content-between">
-																	<h4 class="mb-0 cvs-control-text">Contrôle</h4>
-																	<p><?php echo $item["nbre_controle"];  ?></p>
-																</div>
-															</div>
-														</div>
-														<!-- <div class="card">
 
-															<div class="pard-body">
-																<h5 class="mb-0"><?php echo $item["CVS"]; ?></h5>
-															</div>
-															<div class="card-footer p-0 text-center d-flex justify-content-center ">
-																<div class="pard-footer-item pard-footer-item-bordered">
-																	<h4 class="mb-0 cvs-identif-text">Identification</h4>
-																	<p><?php echo $item["nbre_identification"];  ?></p>
-																</div>
-																<div class="pard-footer-item pard-footer-item-bordered">
-																	<h4 class="mb-0 cvs-install-text">Installation</h4>
-																	<p><?php echo $item["nbre_installation"];  ?></p>
-																</div>
-																<div class="pard-footer-item pard-footer-item-bordered">
-																	<h4 class="mb-0 cvs-control-text">Contrôle</h4>
-																	<p><?php echo $item["nbre_controle"];  ?></p>
-																</div>
-															</div>
-														</div> -->
-													</div>
-											<?php
-
-												}
-											}
-
-											?>
+												?>
+											</div>
+											<div class="empty-state" id="emptyState" style="display:none;">
+												<i class="fas fa-search"></i>
+												<p>Aucun CVS trouvé pour votre recherche</p>
+											</div>
 										</div>
 									</div>
 
@@ -746,7 +865,93 @@ if (isset($_POST['site']) && isset($_POST['Du']) && isset($_POST['Au'])) {
 
 			}
 
+			// Fonction pour gérer le toggle des CVS
+			window.toggleCVS = function(btn) {
+				const card = btn.closest('.cvs-card');
+				const body = card.querySelector('.card-body');
+				const icon = btn.querySelector('i');
+				
+				if (body.classList.contains('show')) {
+					body.classList.remove('show');
+					btn.classList.remove('expanded');
+					icon.className = 'fas fa-chevron-down';
+				} else {
+					body.classList.add('show');
+					btn.classList.add('expanded');
+					icon.className = 'fas fa-chevron-up';
+				}
+			};
 
+			// Fonction de filtrage des CVS
+			function filterCVS() {
+				const searchTerm = $('#cvsSearchInput').val().toLowerCase().trim();
+				const items = $('.cvs-item');
+				let visibleCount = 0;
+				let hiddenCount = 0;
+
+				items.each(function() {
+					const cvsName = $(this).data('cvs-name');
+					if (searchTerm === '' || cvsName.indexOf(searchTerm) !== -1) {
+						$(this).removeClass('hidden').show();
+						visibleCount++;
+					} else {
+						$(this).addClass('hidden').hide();
+						hiddenCount++;
+					}
+				});
+
+				// Mettre à jour les compteurs
+				$('#cvsVisibleCount').text(visibleCount);
+				
+				if (searchTerm !== '') {
+					$('#cvsFilterCount').show();
+					if (hiddenCount > 0) {
+						$('#filterBadge').text(hiddenCount).addClass('active');
+					} else {
+						$('#filterBadge').removeClass('active');
+					}
+				} else {
+					$('#cvsFilterCount').hide();
+					$('#filterBadge').removeClass('active');
+				}
+
+				// Afficher/masquer l'état vide
+				if (visibleCount === 0 && searchTerm !== '') {
+					$('#emptyState').show();
+				} else {
+					$('#emptyState').hide();
+				}
+			}
+
+			// Événement de recherche avec debounce
+			let searchTimeout;
+			$('#cvsSearchInput').on('input', function() {
+				clearTimeout(searchTimeout);
+				searchTimeout = setTimeout(filterCVS, 150);
+			});
+
+			// Bouton de filtre
+			$('#cvsFilterBtn').on('click', function(e) {
+				e.preventDefault();
+				if ($('#cvsSearchInput').val() !== '') {
+					$('#cvsSearchInput').val('');
+					filterCVS();
+					$('#cvsSearchInput').focus();
+				} else {
+					$('#cvsSearchInput').focus();
+				}
+			});
+
+			// Touche Escape
+			$('#cvsSearchInput').on('keyup', function(e) {
+				if (e.key === 'Escape') {
+					$(this).val('');
+					filterCVS();
+				}
+			});
+
+			// Initialiser le filtre au chargement
+			filterCVS();
 
 		});
 		$(window).scroll(function() {
