@@ -394,44 +394,323 @@ public function getCVS_CompteursInstallAndReplacePeriodeCount($cvs, $du, $au)
 		$result = $st->fetch(PDO::FETCH_ASSOC);
 		return	$result["nombre"];
 	}
-	public function getCVS_IdentificationCount($cvs, $du, $au)
-	{
-		$query = "SELECT Count(*) as nombre FROM  t_main_data 
-			INNER JOIN t_param_cvs 
-				ON t_param_cvs.`code` = t_main_data.cvs_id 
-			INNER JOIN t_log_adresses 
-				ON t_main_data.adresse_id = t_log_adresses.id 
-			INNER JOIN t_param_adresse_entity AS e_quartier 
-				ON t_log_adresses.quartier_id = e_quartier.`code` 
-			INNER JOIN t_param_adresse_entity AS e_commune  
-				ON t_log_adresses.commune_id = e_commune.`code` 
-			INNER JOIN t_param_adresse_entity AS e_ville 
-				ON t_log_adresses.ville_id = e_ville.`code` 
-			INNER JOIN t_utilisateurs 
-				ON t_main_data.identificateur = t_utilisateurs.code_utilisateur 
-			INNER JOIN t_utilisateurs as t_chef_equipe 
-				ON t_main_data.chef_equipe = t_chef_equipe.code_utilisateur  
-			INNER JOIN t_param_organisme 
-				ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
-			INNER JOIN t_param_adresse_entity AS e_avenue 
-				ON t_log_adresses.avenue = e_avenue.`code` 
-			INNER JOIN t_param_identite AS identite_client 
-				ON t_main_data.client_id = identite_client.id  
-			WHERE 
-			(DATE_FORMAT(date_fin_identification,'%Y-%m-%d')  
-		between :du and :au) AND 
-			t_main_data.cvs_id = :id_cvs  
-				AND t_main_data.annule= :annule";
+	// public function getCVS_IdentificationCount($cvs, $du, $au)
+	// {
+	// 	$query = "SELECT Count(*) as nombre FROM  t_main_data 
+	// 		INNER JOIN t_param_cvs 
+	// 			ON t_param_cvs.`code` = t_main_data.cvs_id 
+	// 		INNER JOIN t_log_adresses 
+	// 			ON t_main_data.adresse_id = t_log_adresses.id 
+	// 		INNER JOIN t_param_adresse_entity AS e_quartier 
+	// 			ON t_log_adresses.quartier_id = e_quartier.`code` 
+	// 		INNER JOIN t_param_adresse_entity AS e_commune  
+	// 			ON t_log_adresses.commune_id = e_commune.`code` 
+	// 		INNER JOIN t_param_adresse_entity AS e_ville 
+	// 			ON t_log_adresses.ville_id = e_ville.`code` 
+	// 		INNER JOIN t_utilisateurs 
+	// 			ON t_main_data.identificateur = t_utilisateurs.code_utilisateur 
+	// 		INNER JOIN t_utilisateurs as t_chef_equipe 
+	// 			ON t_main_data.chef_equipe = t_chef_equipe.code_utilisateur  
+	// 		INNER JOIN t_param_organisme 
+	// 			ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
+	// 		INNER JOIN t_param_adresse_entity AS e_avenue 
+	// 			ON t_log_adresses.avenue = e_avenue.`code` 
+	// 		INNER JOIN t_param_identite AS identite_client 
+	// 			ON t_main_data.client_id = identite_client.id  
+	// 		WHERE 
+	// 		(DATE_FORMAT(date_fin_identification,'%Y-%m-%d')  
+	// 	between :du and :au) AND 
+	// 		t_main_data.cvs_id = :id_cvs  
+	// 			AND t_main_data.annule= :annule";
 
-		$st = $this->connection->prepare($query);
-		$st->bindValue(":id_cvs", $cvs);
-		$st->bindValue(":du", $du);
-		$st->bindValue(":au", $au);
-		$st->bindValue(":annule", Utils::$Valid);
-		$st->execute();
-		$result = $st->fetch(PDO::FETCH_ASSOC);
-		return	$result["nombre"];
-	}
+	// 	$st = $this->connection->prepare($query);
+	// 	$st->bindValue(":id_cvs", $cvs);
+	// 	$st->bindValue(":du", $du);
+	// 	$st->bindValue(":au", $au);
+	// 	$st->bindValue(":annule", Utils::$Valid);
+	// 	$st->execute();
+	// 	$result = $st->fetch(PDO::FETCH_ASSOC);
+	// 	return	$result["nombre"];
+	// }
+
+public function getCVS_Identifications($cvs, $du, $au)
+{
+    $query = "SELECT 
+        -- Customer & Location
+        Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue,
+        identite_client.phone_number as telephone_client,
+        t_main_data.p_a,
+        t_param_adresse_entity_quartier.libelle as quartier_libelle,
+        t_param_adresse_entity_avenue.libelle as avenue_libelle,
+        t_log_adresses.numero as adresse_numero,
+        
+        -- Status & Approval
+        t_main_data.statut_client,
+        t_main_data.statut_approbation_dernier_install as statut_approbation,
+        t_main_data.est_installer,
+        
+        -- Installation Details
+        t_main_data.num_compteur_actuel,
+        t_main_data.etat_compteur,
+        t_main_data.num_scelle_cpteur_un_install,
+        t_main_data.num_scelle_coffret_deux_install,
+        t_main_data.date_pose_scelle_install,
+        
+        -- Team & Performance
+        t_param_organisme.denomination as equipe_nom,
+        t_utilisateurs.nom_complet as identificateur_nom,
+        t_main_data.chef_equipe,
+        
+        -- Business Intelligence
+        t_main_data.type_client,
+        t_main_data.nature_activity,
+        t_main_data.tarif_identif,
+        t_main_data.est_desaffecter,
+        t_main_data.nbre_branchement,
+        
+        -- Date
+        DATE_FORMAT(STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d'), '%d/%m/%Y') AS date_fin_identification_fr
+        
+    FROM t_main_data 
+    INNER JOIN t_param_cvs ON t_param_cvs.`code` = t_main_data.cvs_id 
+    INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id 
+    INNER JOIN t_param_adresse_entity AS t_param_adresse_entity_avenue ON t_log_adresses.avenue = t_param_adresse_entity_avenue.`code` 
+    INNER JOIN t_param_adresse_entity AS t_param_adresse_entity_quartier ON t_log_adresses.quartier_id = t_param_adresse_entity_quartier.`code` 
+    INNER JOIN t_utilisateurs ON t_main_data.identificateur = t_utilisateurs.code_utilisateur 
+    INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
+    INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id  
+    WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule
+    ORDER BY t_main_data.date_fin_identification DESC";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetchAll(PDO::FETCH_ASSOC);
+    return $result;
+}
+public function getCVS_IdentificationCount($cvs, $du, $au)
+{
+    $query = "SELECT Count(*) as nombre FROM  t_main_data 
+        INNER JOIN t_param_cvs ON t_param_cvs.`code` = t_main_data.cvs_id 
+        INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id 
+        INNER JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.`code` 
+        INNER JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_commune.`code` 
+        INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.`code` 
+        INNER JOIN t_utilisateurs ON t_main_data.identificateur = t_utilisateurs.code_utilisateur 
+        INNER JOIN t_utilisateurs as t_chef_equipe ON t_main_data.chef_equipe = t_chef_equipe.code_utilisateur  
+        INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
+        INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.`code` 
+        INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id  
+        WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetch(PDO::FETCH_ASSOC);
+    return $result["nombre"];
+}
+public function getCVS_IdentificationsWithCompteur($cvs, $du, $au)
+{
+    $query = "SELECT 
+        -- Informations du client
+        Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue,
+        identite_client.phone_number as telephone_client,
+        t_main_data.p_a,
+        
+        -- Adresse
+        t_param_adresse_entity_quartier.libelle as quartier_libelle,
+        t_param_adresse_entity_avenue.libelle as avenue_libelle,
+        t_log_adresses.numero as adresse_numero,
+        
+        -- Informations du compteur identifié
+        t_main_data.num_compteur_actuel,
+        t_main_data.etat_compteur,
+        t_main_data.marque_compteur_install,
+        t_main_data.num_scelle_cpteur_un_install,
+        t_main_data.num_scelle_coffret_deux_install,
+        t_main_data.date_pose_scelle_install,
+        t_main_data.nbre_branchement,
+        t_main_data.type_compteur,
+        
+        -- Statut
+        t_main_data.statut_client,
+        t_main_data.est_installer,
+        t_main_data.est_desaffecter,
+        t_main_data.statut_approbation_dernier_install as statut_approbation,
+        
+        -- Équipe et identificateur
+        t_param_organisme.denomination as equipe_nom,
+        t_utilisateurs.nom_complet as identificateur_nom,
+        t_main_data.chef_equipe,
+        
+        -- Type client et activité
+        t_main_data.type_client,
+        t_main_data.nature_activity,
+        t_main_data.tarif_identif,
+        
+        -- Date
+        DATE_FORMAT(STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d'), '%d/%m/%Y') AS date_fin_identification_fr,
+        t_main_data.date_fin_identification
+        
+    FROM t_main_data 
+    INNER JOIN t_param_cvs ON t_param_cvs.`code` = t_main_data.cvs_id 
+    INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id 
+    INNER JOIN t_param_adresse_entity AS t_param_adresse_entity_avenue ON t_log_adresses.avenue = t_param_adresse_entity_avenue.`code` 
+    INNER JOIN t_param_adresse_entity AS t_param_adresse_entity_quartier ON t_log_adresses.quartier_id = t_param_adresse_entity_quartier.`code` 
+    INNER JOIN t_utilisateurs ON t_main_data.identificateur = t_utilisateurs.code_utilisateur 
+    INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
+    INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id  
+    WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule
+        AND t_main_data.num_compteur_actuel IS NOT NULL
+        AND t_main_data.num_compteur_actuel != ''
+    ORDER BY t_main_data.date_fin_identification DESC";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetchAll(PDO::FETCH_ASSOC);
+    return $result;
+}
+
+// Méthode pour compter les compteurs installés après identification
+public function getCVS_CompteursInstallesApresIdentifCount($cvs, $du, $au)
+{
+    $query = "SELECT COUNT(*) as nombre 
+    FROM t_main_data 
+    WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule
+        AND t_main_data.num_compteur_actuel IS NOT NULL
+        AND t_main_data.num_compteur_actuel != ''
+        AND t_main_data.est_installer = 1";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetch(PDO::FETCH_ASSOC);
+    return $result["nombre"];
+}
+
+
+
+
+
+// Récupérer la liste des compteurs identifiés pour un CVS et une période donnée
+public function getCVS_CompteursIdentifies($cvs, $du, $au)
+{
+    $query = "SELECT 
+        t_main_data.id_,
+        t_main_data.p_a,
+        t_main_data.client_id,
+        t_main_data.occupant_id,
+        t_main_data.cvs_id,
+        t_main_data.ref_site_identif,
+        t_main_data.tarif_identif,
+        t_main_data.adresse_id,
+        t_main_data.est_installer,
+        t_main_data.marque_compteur_install,
+        t_main_data.num_compteur_actuel,
+        t_main_data.num_scelle_cpteur_un_install,
+        t_main_data.num_scelle_coffret_deux_install,
+        t_main_data.date_pose_scelle_install,
+        t_main_data.etat_compteur,
+        t_main_data.type_client,
+        t_main_data.nature_activity,
+        t_main_data.statut_client,
+        t_main_data.est_desaffecter,
+        t_main_data.identificateur,
+        t_main_data.id_equipe_identification,
+        t_main_data.chef_equipe,
+        t_main_data.nbre_branchement,
+        DATE_FORMAT(STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d'), '%d/%m/%Y') AS date_fin_identification_fr,
+        Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue,
+        identite_client.phone_number as telephone_client
+    FROM t_main_data 
+    INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id  
+    WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule
+        AND t_main_data.num_compteur_actuel IS NOT NULL
+        AND t_main_data.num_compteur_actuel != ''
+    ORDER BY t_main_data.date_fin_identification DESC";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetchAll(PDO::FETCH_ASSOC);
+    return $result;
+}
+
+// Compter les compteurs identifiés pour un CVS et une période donnée
+public function getCVS_CompteursIdentifiesCount($cvs, $du, $au)
+{
+    $query = "SELECT COUNT(*) as nombre 
+    FROM t_main_data 
+    WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule
+        AND t_main_data.num_compteur_actuel IS NOT NULL
+        AND t_main_data.num_compteur_actuel != ''";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetch(PDO::FETCH_ASSOC);
+    return $result["nombre"];
+}
+
+// Compter les compteurs identifiés qui sont installés
+public function getCVS_CompteursIdentifiesInstallesCount($cvs, $du, $au)
+{
+    $query = "SELECT COUNT(*) as nombre 
+    FROM t_main_data 
+    WHERE 
+        (STR_TO_DATE(t_main_data.date_fin_identification, '%Y-%m-%d') BETWEEN :du AND :au) 
+        AND t_main_data.cvs_id = :id_cvs  
+        AND t_main_data.annule = :annule
+        AND t_main_data.num_compteur_actuel IS NOT NULL
+        AND t_main_data.num_compteur_actuel != ''
+        AND t_main_data.est_installer = 1";
+
+    $st = $this->connection->prepare($query);
+    $st->bindValue(":id_cvs", $cvs);
+    $st->bindValue(":du", $du);
+    $st->bindValue(":au", $au);
+    $st->bindValue(":annule", Utils::$Valid);
+    $st->execute();
+    $result = $st->fetch(PDO::FETCH_ASSOC);
+    return $result["nombre"];
+}
 
 	public function getCVS_CompteursInstallPeriodeCount($cvs, $du, $au)
 	{
