@@ -1,7 +1,6 @@
 <?php
 
 require_once '../loader/init.php';
-
 require_once '../classes/CLS_Reporting.php';
 require_once '../classes/CVS.php';
 require_once '../classes/MarqueCompteur.php';
@@ -21,6 +20,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
 $database = new Database();
 $db = $database->getConnection();
@@ -31,168 +31,565 @@ $cvs = new CVS($db);
 $marquecompteur = new MarqueCompteur($db);
 $adresseItem = new AdresseEntity($db);
 $site_classe = new Site($db);
-
 $organisme = new Organisme($db);
 
-function cellAlign($newsheet, $cells, $align)
-{
-
-    if ($align == "R") {
-        $newsheet->getStyle($cells)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-    } else if ($align == "J") {
-        $newsheet->getStyle($cells)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_JUSTIFY);
-    } else if ($align == "C") {
-        $newsheet->getStyle($cells)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-    }
-}
-
-function cellBorder($newsheet, $cells)
-{
-    $newsheet->getStyle($cells)->applyFromArray(
-        [
-            'borders' => [
-                'outline' => [
-                    'style' => Border::BORDER_THIN,
-                    'color' => ['argb' => 'FF000000'],
-                ],
-            ],
-        ]
-    );
-}
-
-function cellStyle($newsheet, $cells, $size)
-{
-
-    $newsheet->getStyle($cells)->getFont()->setSize($size);
-    $newsheet->getStyle($cells)->getFont()->setBold(true);
-}
-
-function cellColor($newsheet, $cells, $color)
-{
-    $newsheet->getStyle($cells)->getFill()->applyFromArray([
-        'fillType' => Fill::FILL_SOLID,
-        'startColor' => [
-            'rgb' => $color,
-        ],
-    ]);
-}
-
-
-
 $liste_site = array();
-$header_bg_color = "#ECF2FE"; // "#5969ff";//eee6ff
+$header_bg_color = "#ECF2FE";
 $site = isset($_POST['site']) ? $_POST['site'] : NULL;
 $du = isset($_POST['Du']) ? Utils::ClientToDbDateFormat($_POST['Du']) : "";
 $au = isset($_POST['Au']) ? Utils::ClientToDbDateFormat($_POST['Au']) : "";
 $du_ = isset($_POST['Du']) ? ($_POST['Du']) : "";
 $au_ = isset($_POST['Au']) ? ($_POST['Au']) : "";
+$selected_cvs = isset($_POST['cvs']) ? $_POST['cvs'] : array();
+
 $utilisateur->is_logged_in();
 $utilisateur->readOne();
 
-if (in_array($MULTI_ACCESS_SITE_CODE, $site)) {
-    $liste_site =  $cls_report->GetAll_AccessibleUSerSite($utilisateur->code_utilisateur);
-} else {
-    $liste_site = $site;
-}
+try {
+    if (in_array($MULTI_ACCESS_SITE_CODE, $site)) {
+        $liste_site = $cls_report->GetAll_AccessibleUSerSite($utilisateur->code_utilisateur);
+    } else {
+        $liste_site = $site;
+    }
 
+    // ============================================
+    // FONCTIONS UTILITAIRES
+    // ============================================
 
+    function cellAlign($newsheet, $cells, $align)
+    {
+        if ($align == "R") {
+            $newsheet->getStyle($cells)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        } else if ($align == "J") {
+            $newsheet->getStyle($cells)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_JUSTIFY);
+        } else if ($align == "C") {
+            $newsheet->getStyle($cells)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+    }
 
-$query_installateurs_suppl = "SELECT t_utilisateurs.code_utilisateur,t_utilisateurs.nom_complet,t_log_installation_users.ref_inst_ FROM t_log_installation_users INNER JOIN t_utilisateurs ON t_log_installation_users.ref_user = t_utilisateurs.code_utilisateur where t_log_installation_users.ref_inst_=:ref_inst_";
-$stmt_supp = $db->prepare($query_installateurs_suppl);
-$objPHPExcel = new Spreadsheet();
-$objPHPExcel->setActiveSheetIndex(0);
-$newsheet =   $objPHPExcel->getActiveSheet();
+    function sanitizeSheetTitle($title, $maxLength = 31)
+    {
+        $invalidChars = ['\\', '/', '?', '*', '[', ']', ':'];
+        $title = str_replace($invalidChars, '_', $title);
+        $title = trim($title);
+        if ($title === '') {
+            $title = 'Sheet';
+        }
+        if (strlen($title) > $maxLength) {
+            $title = substr($title, 0, $maxLength);
+        }
+        $title = trim($title, "'");
+        if (is_numeric($title[0] ?? null)) {
+            $title = '_' . $title;
+        }
+        return $title;
+    }
 
+    function cellBorder($newsheet, $cells)
+    {
+        $newsheet->getStyle($cells)->applyFromArray(
+            [
+                'borders' => [
+                    'outline' => [
+                        'style' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ]
+        );
+    }
 
-foreach ($liste_site as $site_item) {
-    $site_classe->code_site = $site_item;
-    $site_classe->GetDetailIN();
-    $USER_SITENAME = $site_classe->intitule_site;
+    function cellBorderAll($newsheet, $cells)
+    {
+        $newsheet->getStyle($cells)->applyFromArray(
+            [
+                'borders' => [
+                    'allBorders' => [
+                        'style' => Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ]
+        );
+    }
 
-    $cvs_list = $cls_report->GetAll_Site_CVSList($site_item);
-    $count_cvs = count($cvs_list);
-    $ctr_cvs = 0;
-    $start_l = false;
-    $rowNumber = 7; //start in row 1
+    function cellStyle($newsheet, $cells, $size)
+    {
+        $newsheet->getStyle($cells)->getFont()->setSize($size);
+        $newsheet->getStyle($cells)->getFont()->setBold(true);
+    }
 
+    function cellColor($newsheet, $cells, $color)
+    {
+        $newsheet->getStyle($cells)->getFill()->applyFromArray([
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => [
+                'rgb' => $color,
+            ],
+        ]);
+    }
 
+    function cellColorFont($newsheet, $cells, $color)
+    {
+        $newsheet->getStyle($cells)->getFont()->getColor()->setRGB($color);
+    }
 
+    function addLogoToSheet($worksheet, $path = null)
+    {
+        if ($path === null) {
+            $path = __DIR__ . '\images\logo2.png';
+        }
+        
+        if (file_exists($path)) {
+            $drawing = new Drawing();
+            $drawing->setName('Logo');
+            $drawing->setDescription('Company Logo');
+            $drawing->setPath($path);
+            $drawing->setHeight(100);
+            $drawing->setWidth(180);
+            $drawing->setCoordinates('A1');
+            $drawing->setWorksheet($worksheet);
+            return $drawing;
+        }
+        return null;
+    }
 
+    function addHeaderToSheet($worksheet)
+    {
+        $range = 'G1:L6';
+        $text = "Société Anonyme avec Conseil d'Administration\n";
+        $text .= "Adresse : Galerie Gombe River\n";
+        $text .= "Avenue des forces armées n°1022\n";
+        $text .= "Commune de la Gombe\n";
+        $text .= "Kinshasa R. D. C";
 
+        $worksheet->mergeCells($range);
+        $worksheet->setCellValue('G1', $text);
+
+        $style = $worksheet->getStyle($range);
+        $style->getFont()->setBold(true)->setSize(12);
+        $style->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $style->getAlignment()->setWrapText(true);
+    }
+
+    // ============================================
+    // FONCTIONS DE RÉCUPÉRATION DES DONNÉES
+    // ============================================
+
+    function getAssignationData($db, $cvs_code, $du, $au)
+    {
+        $query = "
+        SELECT
+            DATE_FORMAT(
+                STR_TO_DATE(t.date_assignation, '%Y-%m-%d %H:%i:%s'),
+                '%d/%m/%Y'
+            ) AS date_assignation,
+            t.technicien,
+            t.cvs,
+            t.assignations_recues,
+            t.controles_realises,
+            (t.assignations_recues - t.controles_realises) AS en_attente,
+            ROUND(
+                (t.controles_realises / NULLIF(t.assignations_recues, 0)) * 100,
+                1
+            ) AS taux_realisation,
+            t.non_conformites
+        FROM (
+            SELECT
+                a.datesys AS date_assignation,
+                u.nom_complet AS technicien,
+                cvs.libelle AS cvs,
+                COUNT(DISTINCT a.id_assign) AS assignations_recues,
+                COUNT(DISTINCT c.ref_fiche_controle) AS controles_realises,
+                COUNT(DISTINCT o.ref_control_obs) AS non_conformites
+            FROM
+                t_param_assignation a
+                INNER JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur
+                INNER JOIN t_param_cvs cvs ON cvs.code = :cvs_code
+                INNER JOIN t_main_data md ON a.id_fiche_identif = md.id_
+                LEFT JOIN t_log_controle c ON md.id_ = c.ref_fiche_identification
+                    AND c.annule = 0
+                    AND c.statut_controle IN ('1', '2', 'R')
+                    AND DATE(c.date_controle) = DATE(a.date_execution)
+                LEFT JOIN t_log_controle_observations o ON c.ref_fiche_controle = o.ref_fiche_control
+                    AND o.annule = 0
+            WHERE
+                a.annule = 0
+                AND a.statut_ = 1
+                AND a.type_assignation = 1
+                AND md.cvs_id = :cvs_code
+                AND STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s') BETWEEN :du AND :au
+            GROUP BY
+                a.datesys,
+                u.nom_complet,
+                cvs.libelle
+        ) t
+        ORDER BY
+            t.technicien,
+            STR_TO_DATE(t.date_assignation, '%Y-%m-%d %H:%i:%s') DESC
+        ";
+
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(":cvs_code", $cvs_code);
+        $stmt->bindValue(":du", $du);
+        $stmt->bindValue(":au", $au);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    function getSynthByTechnicien($db, $cvs_code, $du, $au)
+    {
+        $query = "
+        SELECT
+            t.technicien,
+            SUM(t.assignations) AS assignations,
+            SUM(t.controles) AS controles,
+            SUM(t.assignations) - SUM(t.controles) AS en_attente,
+            ROUND(
+                (SUM(t.controles) / NULLIF(SUM(t.assignations), 0)) * 100,
+                1
+            ) AS taux
+        FROM (
+            SELECT
+                u.nom_complet AS technicien,
+                COUNT(DISTINCT a.id_assign) AS assignations,
+                COUNT(DISTINCT c.ref_fiche_controle) AS controles
+            FROM
+                t_param_assignation a
+                INNER JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur
+                INNER JOIN t_main_data md ON a.id_fiche_identif = md.id_
+                LEFT JOIN t_log_controle c ON md.id_ = c.ref_fiche_identification
+                    AND c.annule = 0
+                    AND c.statut_controle IN ('1', '2', 'R')
+                    AND DATE(c.date_controle) = DATE(a.date_execution)
+            WHERE
+                a.annule = 0
+                AND a.statut_ = 1
+                AND a.type_assignation = 1
+                AND md.cvs_id = :cvs_code
+                AND STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s') BETWEEN :du AND :au
+            GROUP BY
+                u.nom_complet
+        ) t
+        GROUP BY
+            t.technicien
+        ORDER BY
+            taux DESC
+        ";
+
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(":cvs_code", $cvs_code);
+        $stmt->bindValue(":du", $du);
+        $stmt->bindValue(":au", $au);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // ============================================
+    // CREATION DU RAPPORT EXCEL
+    // ============================================
+
+    $objPHPExcel = new Spreadsheet();
     $objPHPExcel->setActiveSheetIndex(0);
-    $newsheet =   $objPHPExcel->getActiveSheet();
-    //DEBUT SYNTHESE
-
+    $newsheet = $objPHPExcel->getActiveSheet();
     $newsheet->setTitle("SYNTHESE");
-    $newsheet->mergeCells('B' . $rowNumber . ':H' . $rowNumber);
-    cellStyle($newsheet, 'B' . $rowNumber, 14);
-    $newsheet->setCellValue('B' . $rowNumber, 'TABLEAU RESUME  du ' . $du_ . ' au ' . $au_);
-    cellBorder($newsheet, 'B' . $rowNumber . ':H' . $rowNumber);
-    cellAlign($newsheet, 'B' . $rowNumber, 'C');
-    cellColor($newsheet, 'B' . $rowNumber, 'b6b8b9');
 
-    $rowNumber++;
-    $rowNumber++;
-    cellStyle($newsheet, 'A' . $rowNumber, 13);
-    $newsheet->setCellValue('A' . $rowNumber, "Nombre total d'assignations");
-    // exit;
-    // $rowNumber++;
-    $rowNumber++;
-    $rowNumber++;
-    $Total_replaced = 0;
-    $Total_install = 0;
-    $col = 'A';
-    //ITERATION DATA IINSTALL FOR CURRENT SITE
-    $rowNumber_titre = $rowNumber;
-    $rowNumber_install = $rowNumber + 1;
-    $rowNumber_replace = $rowNumber + 2;
+    // Logo et en-tête sur la feuille SYNTHESE
+    addLogoToSheet($newsheet);
+    addHeaderToSheet($newsheet);
 
-    $newsheet->setCellValue($col . $rowNumber_install, 'Controlés ');
-    cellBorder($newsheet, $col . $rowNumber_install);
+    foreach ($liste_site as $site_item) {
+        $site_classe->code_site = $site_item;
+        $site_classe->GetDetailIN();
+        $USER_SITENAME = $site_classe->intitule_site;
 
-    $newsheet->setCellValue($col . $rowNumber_replace, 'Non Controllés');
-    cellBorder($newsheet, $col . $rowNumber_replace);
+        $cvs_list = $cls_report->GetAll_Site_CVSList($site_item);
 
-    $col = 'B';
-    foreach ($cvs_list as $cvs_item) {
-        //RECUPERATION LISTE DES COMPTEURS INSTALLES POUR LE CURRENT CVS AND GIVEN PERIOD 
-        $nbre_install = $cls_report->getCVS_AssignationControllesCount($cvs_item["code"], $du, $au);
-        $nbre_replace = $cls_report->getCVS_AssignationNonControllesCount($cvs_item["code"], $du, $au);
+        // Filtrer les CVS si sélectionnés
+        if (!in_array('ALL', $selected_cvs) && !empty($selected_cvs)) {
+            $cvs_list = array_filter($cvs_list, function ($cvs_item) use ($selected_cvs) {
+                return in_array($cvs_item['code'], $selected_cvs);
+            });
+        }
+        $cvs_list = array_values($cvs_list);
 
-        $Total_replaced += $nbre_replace;
-        $Total_install += $nbre_install;
+        $rowNumber = 7; // Début à la ligne 7 pour laisser place au logo
 
-        $newsheet->setCellValue($col . $rowNumber_titre, 'CVS/' . $cvs_item["libelle"]);
+        // TITRE RAPPORT
+        $newsheet->mergeCells('B' . $rowNumber . ':H' . $rowNumber);
+        cellStyle($newsheet, 'B' . $rowNumber, 14);
+        $newsheet->setCellValue('B' . $rowNumber, 'RAPPORT DES ASSIGNATIONS - ' . $USER_SITENAME . ' du ' . $du_ . ' au ' . $au_);
+        cellBorder($newsheet, 'B' . $rowNumber . ':H' . $rowNumber);
+        cellAlign($newsheet, 'B' . $rowNumber, 'C');
+        cellColor($newsheet, 'B' . $rowNumber, 'b6b8b9');
+
+        // ============================================
+        // TABLEAU DE SYNTHESE PAR CVS
+        // ============================================
+        $rowNumber += 2;
+        cellStyle($newsheet, 'A' . $rowNumber, 13);
+        $newsheet->setCellValue('A' . $rowNumber, 'Synthèse par CVS');
+
+        $rowNumber += 2;
+        $Total_assignations = 0;
+        $Total_controles = 0;
+        $Total_non_conformites = 0;
+        $col = 'A';
+        $rowNumber_titre = $rowNumber;
+        $rowNumber_assign = $rowNumber + 1;
+        $rowNumber_control = $rowNumber + 2;
+        $rowNumber_nonconf = $rowNumber + 3;
+        $rowNumber_taux = $rowNumber + 4;
+
+        // En-têtes
+        $newsheet->setCellValue($col . $rowNumber_assign, 'Assignations');
+        cellBorder($newsheet, $col . $rowNumber_assign);
+        cellStyle($newsheet, $col . $rowNumber_assign, 10);
+        cellColor($newsheet, $col . $rowNumber_assign, 'D6E4F0');
+        cellAlign($newsheet, $col . $rowNumber_assign, 'C');
+
+        $newsheet->setCellValue($col . $rowNumber_control, 'Contrôles');
+        cellBorder($newsheet, $col . $rowNumber_control);
+        cellStyle($newsheet, $col . $rowNumber_control, 10);
+        cellColor($newsheet, $col . $rowNumber_control, 'D6E4F0');
+        cellAlign($newsheet, $col . $rowNumber_control, 'C');
+
+        $newsheet->setCellValue($col . $rowNumber_nonconf, 'Non-conformités');
+        cellBorder($newsheet, $col . $rowNumber_nonconf);
+        cellStyle($newsheet, $col . $rowNumber_nonconf, 10);
+        cellColor($newsheet, $col . $rowNumber_nonconf, 'D6E4F0');
+        cellAlign($newsheet, $col . $rowNumber_nonconf, 'C');
+
+        $newsheet->setCellValue($col . $rowNumber_taux, 'Taux (%)');
+        cellBorder($newsheet, $col . $rowNumber_taux);
+        cellStyle($newsheet, $col . $rowNumber_taux, 10);
+        cellColor($newsheet, $col . $rowNumber_taux, 'D6E4F0');
+        cellAlign($newsheet, $col . $rowNumber_taux, 'C');
+
+        $col = 'B';
+        foreach ($cvs_list as $cvs_item) {
+            $data = getAssignationData($db, $cvs_item["code"], $du, $au);
+            
+            $total_assign = 0;
+            $total_control = 0;
+            $total_nonconf = 0;
+            
+            foreach ($data as $row) {
+                $total_assign += $row['assignations_recues'];
+                $total_control += $row['controles_realises'];
+                $total_nonconf += $row['non_conformites'];
+            }
+            
+            $taux = $total_assign > 0 ? round(($total_control / $total_assign) * 100, 1) : 0;
+            
+            $Total_assignations += $total_assign;
+            $Total_controles += $total_control;
+            $Total_non_conformites += $total_nonconf;
+
+            $newsheet->setCellValue($col . $rowNumber_titre, 'CVS/' . $cvs_item["libelle"]);
+            cellBorder($newsheet, $col . $rowNumber_titre);
+            cellStyle($newsheet, $col . $rowNumber_titre, 10);
+            cellColor($newsheet, $col . $rowNumber_titre, 'E8E8E8');
+
+            $newsheet->setCellValue($col . $rowNumber_assign, $total_assign);
+            cellBorder($newsheet, $col . $rowNumber_assign);
+            cellAlign($newsheet, $col . $rowNumber_assign, 'C');
+
+            $newsheet->setCellValue($col . $rowNumber_control, $total_control);
+            cellBorder($newsheet, $col . $rowNumber_control);
+            cellAlign($newsheet, $col . $rowNumber_control, 'C');
+
+            $newsheet->setCellValue($col . $rowNumber_nonconf, $total_nonconf);
+            cellBorder($newsheet, $col . $rowNumber_nonconf);
+            cellAlign($newsheet, $col . $rowNumber_nonconf, 'C');
+
+            $newsheet->setCellValue($col . $rowNumber_taux, $taux . '%');
+            cellBorder($newsheet, $col . $rowNumber_taux);
+            cellAlign($newsheet, $col . $rowNumber_taux, 'C');
+            
+            // Colorer en rouge si taux < 70%
+            if ($taux < 70) {
+                cellColor($newsheet, $col . $rowNumber_taux, 'FFCCCC');
+            }
+
+            $col++;
+        }
+
+        // Total général
+        $taux_general = $Total_assignations > 0 ? round(($Total_controles / $Total_assignations) * 100, 1) : 0;
+
+        $newsheet->setCellValue($col . $rowNumber_titre, 'TOTAL');
         cellBorder($newsheet, $col . $rowNumber_titre);
         cellStyle($newsheet, $col . $rowNumber_titre, 10);
+        cellColor($newsheet, $col . $rowNumber_titre, '4472C4');
+        cellColorFont($newsheet, $col . $rowNumber_titre, 'FFFFFF');
 
-        $newsheet->setCellValue($col . $rowNumber_install, $nbre_install . ' ');
-        cellBorder($newsheet, $col . $rowNumber_install);
+        $newsheet->setCellValue($col . $rowNumber_assign, $Total_assignations);
+        cellBorder($newsheet, $col . $rowNumber_assign);
+        cellAlign($newsheet, $col . $rowNumber_assign, 'C');
+        cellStyle($newsheet, $col . $rowNumber_assign, 10);
 
-        $newsheet->setCellValue($col . $rowNumber_replace, $nbre_replace . ' ');
-        cellBorder($newsheet, $col . $rowNumber_replace);
+        $newsheet->setCellValue($col . $rowNumber_control, $Total_controles);
+        cellBorder($newsheet, $col . $rowNumber_control);
+        cellAlign($newsheet, $col . $rowNumber_control, 'C');
+        cellStyle($newsheet, $col . $rowNumber_control, 10);
 
-        $col++;
+        $newsheet->setCellValue($col . $rowNumber_nonconf, $Total_non_conformites);
+        cellBorder($newsheet, $col . $rowNumber_nonconf);
+        cellAlign($newsheet, $col . $rowNumber_nonconf, 'C');
+        cellStyle($newsheet, $col . $rowNumber_nonconf, 10);
+
+        $newsheet->setCellValue($col . $rowNumber_taux, $taux_general . '%');
+        cellBorder($newsheet, $col . $rowNumber_taux);
+        cellAlign($newsheet, $col . $rowNumber_taux, 'C');
+        cellStyle($newsheet, $col . $rowNumber_taux, 10);
+        
+        if ($taux_general < 70) {
+            cellColor($newsheet, $col . $rowNumber_taux, 'FFCCCC');
+        }
+
+        // ============================================
+        // DETAIL PAR CVS (Feuilles séparées)
+        // ============================================
+        foreach ($cvs_list as $cvs_item) {
+            $data = getAssignationData($db, $cvs_item["code"], $du, $au);
+            
+            if (count($data) > 0) {
+                // Créer une nouvelle feuille pour chaque CVS
+                $newsheet_detail = $objPHPExcel->createSheet();
+                $sheetTitle = sanitizeSheetTitle($cvs_item["libelle"] . '_Assignations');
+                $newsheet_detail->setTitle($sheetTitle);
+                
+                // Ajouter le logo et l'en-tête sur la feuille détaillée
+                addLogoToSheet($newsheet_detail);
+                addHeaderToSheet($newsheet_detail);
+                
+                $rowNumberDetail = 7; // Commencer à la ligne 7 pour laisser place au logo
+                
+                // Titre du CVS
+                $newsheet_detail->mergeCells('A' . $rowNumberDetail . ':H' . $rowNumberDetail);
+                cellStyle($newsheet_detail, 'A' . $rowNumberDetail, 14);
+                $newsheet_detail->setCellValue('A' . $rowNumberDetail, 'RAPPORT DES ASSIGNATIONS - CVS ' . $cvs_item["libelle"] . ' du ' . $du_ . ' au ' . $au_);
+                cellAlign($newsheet_detail, 'A' . $rowNumberDetail, 'C');
+                cellColor($newsheet_detail, 'A' . $rowNumberDetail, '4472C4');
+                cellColorFont($newsheet_detail, 'A' . $rowNumberDetail, 'FFFFFF');
+                
+                $rowNumberDetail += 2;
+                
+                // En-têtes des colonnes
+                $headers = ['Date', 'Technicien', 'CVS', 'Assignations reçues', 'Contrôles réalisés', 'En attente', 'Taux de réalisation (%)', 'Non-conformités'];
+                $cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+                
+                foreach ($headers as $index => $header) {
+                    $cell = $cols[$index] . $rowNumberDetail;
+                    $newsheet_detail->setCellValue($cell, $header);
+                    cellBorderAll($newsheet_detail, $cell);
+                    cellStyle($newsheet_detail, $cell, 10);
+                    cellColor($newsheet_detail, $cell, 'D6E4F0');
+                    cellAlign($newsheet_detail, $cell, 'C');
+                }
+                $rowNumberDetail++;
+                
+                // Remplir les données
+                foreach ($data as $row) {
+                    $newsheet_detail->setCellValue('A' . $rowNumberDetail, $row['date_assignation']);
+                    $newsheet_detail->setCellValue('B' . $rowNumberDetail, $row['technicien']);
+                    $newsheet_detail->setCellValue('C' . $rowNumberDetail, $row['cvs']);
+                    $newsheet_detail->setCellValue('D' . $rowNumberDetail, $row['assignations_recues']);
+                    $newsheet_detail->setCellValue('E' . $rowNumberDetail, $row['controles_realises']);
+                    $newsheet_detail->setCellValue('F' . $rowNumberDetail, $row['en_attente']);
+                    $newsheet_detail->setCellValue('G' . $rowNumberDetail, $row['taux_realisation']);
+                    $newsheet_detail->setCellValue('H' . $rowNumberDetail, $row['non_conformites']);
+                    
+                    for ($i = 0; $i < 8; $i++) {
+                        cellBorderAll($newsheet_detail, $cols[$i] . $rowNumberDetail);
+                        cellAlign($newsheet_detail, $cols[$i] . $rowNumberDetail, 'C');
+                    }
+                    
+                    // Colorer en rouge si taux < 70%
+                    if ($row['taux_realisation'] < 70) {
+                        for ($i = 0; $i < 8; $i++) {
+                            cellColor($newsheet_detail, $cols[$i] . $rowNumberDetail, 'FFCCCC');
+                        }
+                    }
+                    
+                    $rowNumberDetail++;
+                }
+                
+                // SYNTHESE PAR TECHNICIEN
+                $rowNumberDetail++;
+                $newsheet_detail->mergeCells('A' . $rowNumberDetail . ':E' . $rowNumberDetail);
+                $newsheet_detail->setCellValue('A' . $rowNumberDetail, 'SYNTHÈSE PAR TECHNICIEN');
+                cellStyle($newsheet_detail, 'A' . $rowNumberDetail, 12);
+                cellColor($newsheet_detail, 'A' . $rowNumberDetail, '70AD47');
+                cellColorFont($newsheet_detail, 'A' . $rowNumberDetail, 'FFFFFF');
+                $rowNumberDetail++;
+
+                // En-têtes synthèse
+                $headers_synth = ['Technicien', 'Assignations', 'Contrôles', 'En attente', 'Taux (%)'];
+                $cols_synth = ['A', 'B', 'C', 'D', 'E'];
+                
+                foreach ($headers_synth as $index => $header) {
+                    $cell = $cols_synth[$index] . $rowNumberDetail;
+                    $newsheet_detail->setCellValue($cell, $header);
+                    cellBorderAll($newsheet_detail, $cell);
+                    cellStyle($newsheet_detail, $cell, 10);
+                    cellColor($newsheet_detail, $cell, 'D6E4F0');
+                    cellAlign($newsheet_detail, $cell, 'C');
+                }
+                $rowNumberDetail++;
+
+                // Récupérer la synthèse par technicien
+                $synth_data = getSynthByTechnicien($db, $cvs_item["code"], $du, $au);
+                
+                if (!empty($synth_data)) {
+                    foreach ($synth_data as $row) {
+                        $newsheet_detail->setCellValue('A' . $rowNumberDetail, $row['technicien']);
+                        $newsheet_detail->setCellValue('B' . $rowNumberDetail, $row['assignations']);
+                        $newsheet_detail->setCellValue('C' . $rowNumberDetail, $row['controles']);
+                        $newsheet_detail->setCellValue('D' . $rowNumberDetail, $row['en_attente']);
+                        $newsheet_detail->setCellValue('E' . $rowNumberDetail, $row['taux'] . '%');
+                        
+                        for ($i = 0; $i < 5; $i++) {
+                            cellBorderAll($newsheet_detail, $cols_synth[$i] . $rowNumberDetail);
+                            cellAlign($newsheet_detail, $cols_synth[$i] . $rowNumberDetail, 'C');
+                        }
+                        $rowNumberDetail++;
+                    }
+                }
+                
+                // Ajuster la largeur des colonnes
+                foreach (range('A', 'H') as $col) {
+                    $newsheet_detail->getColumnDimension($col)->setAutoSize(true);
+                }
+            }
+        }
     }
-    // Total_install
 
-    $newsheet->setCellValue($col . $rowNumber_titre, 'TOTAL');
-    cellBorder($newsheet, $col . $rowNumber_titre);
-    cellStyle($newsheet, $col . $rowNumber_titre, 10);
+    // Ajuster la largeur des colonnes sur la feuille synthèse
+    foreach (range('A', 'H') as $col) {
+        $newsheet->getColumnDimension($col)->setAutoSize(true);
+    }
 
-    $newsheet->setCellValue($col . $rowNumber_install, $Total_install . ' ');
-    cellBorder($newsheet, $col . $rowNumber_install);
+    // Supprimer la feuille par défaut si elle est vide
+    $defaultSheet = $objPHPExcel->getSheet(0);
+    if ($defaultSheet->getTitle() == 'Worksheet') {
+        $objPHPExcel->removeSheetByIndex(0);
+    }
 
-    $newsheet->setCellValue($col . $rowNumber_replace, $Total_replaced . ' ');
-    cellBorder($newsheet, $col . $rowNumber_replace);
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="rapport_assignation.xlsx"');
+    header('Cache-Control: max-age=0');
 
-    $rowNumber = $rowNumber + 3;
+    $objWriter = new Xlsx($objPHPExcel);
+    $objWriter->save('php://output');
+    exit();
+
+} catch (Exception $exception) {
+    echo "An error occurred: " . $exception->getMessage();
 }
-
-header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment;filename="rapport_assignation.xlsx"');
-header('Cache-Control: max-age=0');
-
-$objWriter = new Xlsx($objPHPExcel);
-$objWriter->save('php://output');
-exit();
+?>

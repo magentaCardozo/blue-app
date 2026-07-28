@@ -394,6 +394,93 @@ public function getCVS_CompteursInstallAndReplacePeriodeCount($cvs, $du, $au)
 		$result = $st->fetch(PDO::FETCH_ASSOC);
 		return	$result["nombre"];
 	}
+// Dans CLS_Reporting.php
+
+function getAssignationData($db, $cvs_code, $du, $au)
+{
+    $query = "
+        SELECT 
+            DATE_FORMAT(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s'), '%d/%m/%Y') AS date_assignation,
+            a.id_technicien,
+            u.nom_complet AS technicien,
+            cvs.libelle AS cvs,
+            COUNT(DISTINCT a.id_assign) AS assignations_recues,
+            COUNT(DISTINCT c.ref_fiche_controle) AS controles_realises,
+            COUNT(DISTINCT a.id_assign) - COUNT(DISTINCT c.ref_fiche_controle) AS en_attente,
+            ROUND((COUNT(DISTINCT c.ref_fiche_controle) / NULLIF(COUNT(DISTINCT a.id_assign), 0)) * 100, 1) AS taux_realisation,
+            COUNT(DISTINCT o.ref_control_obs) AS non_conformites
+        FROM 
+            t_param_assignation a
+            INNER JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur
+            INNER JOIN t_param_cvs cvs ON cvs.code = :cvs_code
+            INNER JOIN t_main_data md ON a.id_fiche_identif = md.id_
+            LEFT JOIN t_log_controle c ON md.id_ = c.ref_fiche_identification 
+                AND c.annule = 0
+                AND c.statut_controle IN ('1', '2', 'R')
+                AND DATE(c.date_controle) = DATE(a.date_execution)
+            LEFT JOIN t_log_controle_observations o ON c.ref_fiche_controle = o.ref_fiche_control 
+                AND o.annule = 0
+        WHERE 
+            a.annule = 0 
+            AND a.statut_ = 1
+            AND a.type_assignation = 1
+            AND md.cvs_id = :cvs_code
+            AND STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s') BETWEEN :du AND :au
+        GROUP BY 
+            DATE(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s')),
+            a.id_technicien,
+            u.nom_complet,
+            cvs.libelle
+        ORDER BY 
+            u.nom_complet,
+            DATE(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s')) DESC
+    ";
+
+    $stmt = $db->prepare($query);
+    $stmt->bindValue(":cvs_code", $cvs_code);
+    $stmt->bindValue(":du", $du);
+    $stmt->bindValue(":au", $au);
+    $stmt->execute();
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function getSynthByTechnicienForCVS($cvs_code, $du, $au)
+{
+    $query = "
+        SELECT 
+            u.nom_complet AS technicien,
+            COUNT(DISTINCT a.id_assign) AS assignations,
+            COUNT(DISTINCT c.id_controle) AS controles,
+            COUNT(DISTINCT a.id_assign) - COUNT(DISTINCT c.id_controle) AS en_attente,
+            ROUND((COUNT(DISTINCT c.id_controle) / NULLIF(COUNT(DISTINCT a.id_assign), 0)) * 100, 1) AS taux
+        FROM 
+            t_param_assignation a
+            INNER JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur
+            INNER JOIN t_main_data md ON a.id_fiche_identif = md.id_
+            LEFT JOIN t_log_controle c ON a.id_assign = c.assignation_id 
+                AND c.statut_controle IN ('REALISE', 'TERMINE')
+                AND DATE(c.date_controle) = DATE(a.date_execution)
+        WHERE 
+            a.annule = 0 
+            AND a.statut_ = 1
+            AND a.type_assignation = 1
+            AND md.cvs_id = :cvs_code
+            AND DATE(a.datesys) BETWEEN :du AND :au
+        GROUP BY 
+            u.nom_complet
+        ORDER BY 
+            taux DESC
+    ";
+
+    $stmt = $this->connection->prepare($query);
+    $stmt->bindValue(":cvs_code", $cvs_code);
+    $stmt->bindValue(":du", $du);
+    $stmt->bindValue(":au", $au);
+    $stmt->execute();
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 	// public function getCVS_IdentificationCount($cvs, $du, $au)
 	// {
 	// 	$query = "SELECT Count(*) as nombre FROM  t_main_data 
