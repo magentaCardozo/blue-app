@@ -10,115 +10,82 @@ require_once 'loader/init.php';
 Autoloader::Load('classes');
 include_once 'core.php';
 
-/*
-include_once 'include/database_pdo.php';
-include_once 'classes/class.utilisateur.php'; 
-include_once 'classes/class.province.php'; 
-include_once 'classes/class.dashboard.php'; 
-include_once 'classes/class.site.php'; 
-include_once 'classes/class.utils.php';*/
-header('Content-type: text/html;charset=utf-8');
-
 $database = new Database();
 $db = $database->getConnection();
 $utilisateur = new Utilisateur($db);
 $province_class = new Province($db);
 $site_classe = new Site($db);
-// $site = new Site($db);
+$cvs_class = new CVS($db);
 
 $dashview = new Dashviewer($db);
-//$utilisateur->code_utilisateur=$_SESSION['uSession'];
 if ($utilisateur->is_logged_in() == false) {
 	$utilisateur->redirect('login.php');
 }
 $utilisateur->readOne();
-/*
-$province=isset($_POST['province']) ? $_POST['province'] : '';
 
-$first_site="";*/
-/*
-function ClientToDbDateFormat($c_date){	
-		$n_date=str_ireplace('/','-',$c_date);
-		$f_dt=date('Y-m-d',strtotime($n_date));
-		return $f_dt;
-	}*/
+// Traitement de la requête AJAX pour récupérer les CVS par site
+if (isset($_POST['ajax_action']) && $_POST['ajax_action'] == 'get_cvs_by_site') {
+	header('Content-Type: application/json');
+	
+	$site_codes = isset($_POST['site_codes']) ? $_POST['site_codes'] : '';
+	$response = array();
+	
+	if ($site_codes == 'ALL') {
+		// Récupérer tous les CVS
+		$cvs_list = $cvs_class->read();
+		while ($cvs_row = $cvs_list->fetch(PDO::FETCH_ASSOC)) {
+			$response[] = array(
+				'code' => $cvs_row['code'],
+				'libelle' => $cvs_row['libelle']
+			);
+		}
+	} else {
+		// Récupérer les CVS pour les sites spécifiques
+		$site_array = explode(',', $site_codes);
+		$all_cvs = array();
+		
+		foreach ($site_array as $site_code) {
+			$site_code = trim($site_code);
+			if (!empty($site_code)) {
+				$cvs_list = $cvs_class->GetSiteCVS($site_code);
+				while ($cvs_row = $cvs_list->fetch(PDO::FETCH_ASSOC)) {
+					// Éviter les doublons
+					if (!isset($all_cvs[$cvs_row['code']])) {
+						$all_cvs[$cvs_row['code']] = array(
+							'code' => $cvs_row['code'],
+							'libelle' => $cvs_row['libelle']
+						);
+					}
+				}
+			}
+		}
+		
+		$response = array_values($all_cvs);
+	}
+	
+	echo json_encode($response);
+	exit();
+}
 ?>
-
 
 <!doctype html>
 <html lang="fr">
 
 <head>
 	<style>
-		/** SPINNER CREATION **/
-
-		.loader {
-			position: relative;
-			text-align: center;
-			margin: 15px auto 35px auto;
-			z-index: 9999;
-			display: block;
-			width: 80px;
-			height: 80px;
-			border: 10px solid rgba(0, 0, 0, .3);
-			border-radius: 50%;
-			border-top-color: #5969ff;
-			animation: spin 1s ease-in-out infinite;
-			-webkit-animation: spin 1s ease-in-out infinite;
+		.select2-container--default .select2-selection--multiple .select2-selection__choice {
+			background-color: #5969ff;
+			border-color: #4a5adf;
+			color: white;
 		}
-
-		@keyframes spin {
-			to {
-				-webkit-transform: rotate(360deg);
-			}
+		
+		.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+			color: white;
 		}
-
-		@-webkit-keyframes spin {
-			to {
-				-webkit-transform: rotate(360deg);
-			}
+		
+		.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+			color: #ffcccc;
 		}
-
-
-		/** MODAL STYLING **/
-
-		.modal-content {
-			border-radius: 0px;
-			box-shadow: 0 0 20px 8px rgba(0, 0, 0, 0.7);
-		}
-
-		.modal-backdrop.show {
-			opacity: 0.75;
-		}
-
-		.loader-txt {
-			p {
-				font-size: 13px;
-				color: #666;
-
-				small {
-					font-size: 11.5px;
-					color: #999;
-				}
-			}
-		}
-
-		/*dashboard-spinner {
-    margin: 0px 8px;
-    border-radius: 50%;
-    background-color: transparent;
-    border: 6px solid transparent;
-    border-top: 6px solid #5969ff;
-    border-left: 6px solid #5969ff;
-    -webkit-animation: 1s spin linear infinite;
-    animation: 1s spin linear infinite;
-    display: inline-block;
-}
-
-.spinner-xl {
-    width: 120px;
-    height: 120px;
-}*/
 	</style>
 	<link href="assets/css/select2.css" rel="stylesheet">
 
@@ -131,11 +98,7 @@ function ClientToDbDateFormat($c_date){
 <body>
 
 	<!-- main wrapper -->
-	<!-- ============================================================== -->
 	<div class="dashboard-main-wrapper">
-		<!-- ============================================================== -->
-		<!-- navbar -->
-		<!-- ============================================================== -->
 		<?php
 		include_once "layout_top_bar.php";
 		include_once "layout_side_bar.php";
@@ -183,11 +146,11 @@ function ClientToDbDateFormat($c_date){
 
 													<div class="form-row">
 
-														<div class="col-xl-4 col-lg-4 col-md-12 col-sm-12 col-12 mb-2">
+														<!-- 1. Champ SITE -->
+														<div class="col-xl-3 col-lg-3 col-md-12 col-sm-12 col-12 mb-2">
 															<label for="validationCustom04">Site</label>
 															<div class="form-group">
 																<select class="form-control" id="site" name="site[]" required>
-																	<!-- 				<option value='ALL'>Toutes</option>  -->
 																	<?php
 																	$multi_access = false;
 																	if ($utilisateur->HasDroits("10_470")) {
@@ -200,20 +163,30 @@ function ClientToDbDateFormat($c_date){
 
 																	$first_site  = $USER_SITE_ID;
 																	$sites = $site_array->fetchAll(PDO::FETCH_ASSOC);
-																	// var_dump($sites); die();
 																	echo "<option selected value='{$MULTI_ACCESS_SITE_CODE}'>{$MULTI_ACCESS_SITE_LABEL}</option>";
 
 																	foreach ($sites as  $row_) {
 																		echo "<option value='{$row_["code_site"]}'>{$row_["intitule_site"]}</option>";
 																	}
-
-
-																	?></select>
+																	?>
+																</select>
 															</div>
 														</div>
+
+														<!-- 2. Champ CVS (FILTRÉ PAR SITE) -->
+														<div class="col-xl-3 col-lg-3 col-md-12 col-sm-12 col-12 mb-2">
+															<label for="validationCustomCVS">CVS</label>
+															<div class="form-group">
+																<select class="form-control" id="cvs" name="cvs[]" multiple>
+																	<option value='ALL' selected>Tous les CVS</option>
+																</select>
+															</div>
+														</div>
+
+														<!-- 3. Champ DU -->
 														<div class="col-xl-2 col-lg-2 col-md-12 col-sm-12 col-12 mb-2 ">
 															<label for="validationCustom05">Du</label>
-															<div class="form-group" style="width : 135px;margin-right:120px;">
+															<div class="form-group">
 																<div class="input-group date">
 																	<input type="text" class="form-control datetimepicker-input" name="Du" id="Du" required />
 																	<div class="input-group-append">
@@ -222,9 +195,11 @@ function ClientToDbDateFormat($c_date){
 																</div>
 															</div>
 														</div>
+
+														<!-- 4. Champ AU -->
 														<div class="col-xl-2 col-lg-2 col-md-12 col-sm-12 col-12 mb-2 ">
 															<label for="validationCustom05">Au</label>
-															<div class="form-group" style="width : 135px;margin-right:120px;">
+															<div class="form-group">
 																<div class="input-group date">
 																	<input type="text" class="form-control datetimepicker-input" name="Au" id="Au" required />
 																	<div class="input-group-append">
@@ -233,13 +208,17 @@ function ClientToDbDateFormat($c_date){
 																</div>
 															</div>
 														</div>
-														<div class="col-xl-1 col-lg-1 col-md-12 col-sm-12 col-12 ">
+
+														<!-- 5. Bouton EXTRAIRE -->
+														<div class="col-xl-2 col-lg-2 col-md-12 col-sm-12 col-12 ">
 															<label> </label>
 															<p class="text-right">
-																<button type="submit" class="btn btn-outline-primary">
-																	<i class="fas fa-search mr-2"></i>Extraire</button>
+																<button type="submit" class="btn btn-outline-primary" style="margin-top: 5px;">
+																	<i class="fas fa-file-excel mr-2"></i>Extraire Excel
+																</button>
 															</p>
 														</div>
+
 													</div>
 												</div>
 											</form>
@@ -251,14 +230,8 @@ function ClientToDbDateFormat($c_date){
 								</div>
 							</div>
 
-
-
-
-
-
-
 						</div>
-					<?php				} ?>
+					<?php } ?>
 				</div>
 			</div>
 			<!-- ============================================================== -->
@@ -276,77 +249,291 @@ function ClientToDbDateFormat($c_date){
 	<!-- end main wrapper  -->
 	<!-- ============================================================== -->
 	<!-- Optional JavaScript -->
-	<!-- Modal -->
-	<div class="modal" id="loadMe" tabindex="-1" role="dialog" aria-hidden="true" aria-labelledby="getCroppedCanvasTitle">
-		<div class="modal-dialog modal-sm" role="document">
-			<div class="modal-content">
-
-				<div class="modal-body text-center">
-					<!-- <span class="dashboard-spinner spinner-primary spinner-xxl"></span> -->
-					<div class="loader"></div>
-					<div class="loader-txt">
-						<p id="loading_msg"></p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
 	<?php
 	include_once "layout_script.php";
 	?>
 	<script src="assets/js/select2.min.js"></script>
-	<script>
-		$('#site').select2({
-			placeholder: "Sites",
-			multiple: true
+<script>
+
+	// Initialisation Select2 SITE
+	$('#site').select2({
+		placeholder: "Sites",
+		multiple: true,
+		allowClear: true
+	});
+
+
+	// Initialisation Select2 CVS
+	$('#cvs').select2({
+		placeholder: "Sélectionnez des CVS",
+		multiple: true,
+		allowClear: true
+	});
+
+
+	jQuery(document).ready(function($) {
+
+		"use strict";
+
+
+		$("#add_on_du").click(function() {
+			$('#Du').datetimepicker('show');
 		});
-		jQuery(document).ready(function($) {
-			'use strict';
 
 
-			$("#add_on_du").click(function() {
-				$('#Du').datetimepicker('show');
-			});
-			$("#add_on_au").click(function() {
-				$('#Au').datetimepicker('show');
-			});
+		$("#add_on_au").click(function() {
+			$('#Au').datetimepicker('show');
+		});
 
-			if ($("#Du").length) {
-				$('#Du').datetimepicker({
-					format: 'dd/mm/yyyy',
-					language: 'fr',
-					weekStart: 1,
-					todayBtn: 1,
-					autoclose: 1,
-					minView: 2
+
+		$('#Du').datetimepicker({
+			format: 'dd/mm/yyyy',
+			language: 'fr',
+			weekStart: 1,
+			todayBtn: 1,
+			autoclose: 1,
+			minView: 2
+		});
+
+
+		$('#Au').datetimepicker({
+			format: 'dd/mm/yyyy',
+			language: 'fr',
+			weekStart: 1,
+			todayBtn: 1,
+			autoclose: 1,
+			minView: 2
+		});
+
+
+
+		/**
+		 * Gestion SITE
+		 */
+		$('#site').on('change', function() {
+
+			let values = $(this).val() || [];
+
+			let ALL_SITE = "<?php echo $MULTI_ACCESS_SITE_CODE; ?>";
+
+
+			// Aucun site sélectionné
+			if(values.length === 0){
+
+				$(this)
+				.val([ALL_SITE])
+				.trigger('change.select2');
+
+
+				loadCVS('ALL');
+
+				return;
+			}
+
+
+
+			// Si Tous les sites + un site spécifique
+			if(values.length > 1 && values.includes(ALL_SITE)){
+
+
+				values = values.filter(function(value){
+
+					return value !== ALL_SITE;
+
 				});
 
+
+				$(this)
+				.val(values)
+				.trigger('change.select2');
+
 			}
-			if ($("#Au").length) {
-				$('#Au').datetimepicker({
-					format: 'dd/mm/yyyy',
-					language: 'fr',
-					weekStart: 1,
-					todayBtn: 1,
-					autoclose: 1,
-					minView: 2
+
+
+
+			// Tous les sites sélectionné seul
+			if(values.length === 1 && values[0] === ALL_SITE){
+
+				loadCVS('ALL');
+
+			}
+
+			else {
+
+				loadCVS(values.join(','));
+
+			}
+
+		});
+
+
+
+
+
+		/**
+		 * Chargement CVS selon SITE
+		 */
+		function loadCVS(siteCodes){
+
+
+			$.ajax({
+
+				url: window.location.href,
+
+				type:'POST',
+
+				data:{
+					ajax_action:'get_cvs_by_site',
+					site_codes:siteCodes
+				},
+
+				dataType:'json',
+
+
+				success:function(response){
+
+
+					$('#cvs').empty();
+
+
+					// Toujours ajouter Tous les CVS
+					$('#cvs')
+					.append('<option value="ALL">Tous les CVS</option>');
+
+
+
+					$.each(response,function(index,cvs){
+
+						$('#cvs')
+						.append(
+							'<option value="'+cvs.code+'">'
+							+cvs.libelle+
+							'</option>'
+						);
+
+					});
+
+
+
+					$('#cvs')
+					.val(['ALL'])
+					.trigger('change.select2');
+
+
+				},
+
+
+				error:function(xhr,status,error){
+
+					console.error(
+						"Erreur chargement CVS : ",
+						error
+					);
+
+				}
+
+
+			});
+
+
+		}
+
+
+
+
+
+
+
+		/**
+		 * Gestion CVS
+		 */
+		$('#cvs').on('change', function(){
+
+
+			let values = $(this).val() || [];
+
+
+			// Aucun CVS sélectionné
+			if(values.length === 0){
+
+
+				$(this)
+				.val(['ALL'])
+				.trigger('change.select2');
+
+
+				return;
+
+			}
+
+
+
+			// Tous les CVS + CVS spécifique
+			if(values.length > 1 && values.includes('ALL')){
+
+
+				values = values.filter(function(value){
+
+					return value !== 'ALL';
+
 				});
 
+
+				$(this)
+				.val(values)
+				.trigger('change.select2');
+
+
 			}
-
-
 
 
 		});
-	</script>
-	<!--
-        $(document).ready(function () {
-            $('#sidebarCollapse').on('click', function () {
-                $('#sidebar').toggleClass('sidebar-collapse');
-                $('#dashboard').toggleClass('dashboard-collapse');
-            });
-        });
-   -->
+
+
+
+
+
+		/**
+		 * Chargement initial
+		 */
+		let initialSites = $('#site').val();
+
+
+		if(!initialSites || initialSites.length===0){
+
+
+			$('#site')
+			.val(["<?php echo $MULTI_ACCESS_SITE_CODE; ?>"])
+			.trigger('change.select2');
+
+
+			loadCVS('ALL');
+
+
+		}
+
+		else {
+
+
+			if(initialSites.includes("<?php echo $MULTI_ACCESS_SITE_CODE; ?>")){
+
+				loadCVS('ALL');
+
+			}
+			else{
+
+				loadCVS(initialSites.join(','));
+
+			}
+
+		}
+
+
+
+	});
+
+</script>
+
 </body>
 
 </html>
