@@ -3217,7 +3217,9 @@ exit();*/
 
 				$cvs->code = $row_["cvs_id"];
 				$cvs->GetDetailIN();
-				$ctl_rw = $utilisateur->readDetail($row_["code_installateur"]);
+				$ctl_rw = $row_["nom_complet"] 
+    			? ['nom_complet'=>$row_["nom_complet"]] 
+    			: ['nom_complet'=>'Utilisateur supprimé'];
 				$statut_installation->code =  $row_["statut_installation"];
 				$row_statut = $statut_installation->GetDetail();
 
