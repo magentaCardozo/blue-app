@@ -205,14 +205,13 @@ foreach ($liste_site as $site_item) {
     $count_cvs = count($cvs_list);
     $start_l = false;
 
-    $rowNumber = 7; // Commencer à la ligne 7 pour laisser la place au logo
+    $rowNumber = 7;
     $col = 'A';
     $newsheet = $objPHPExcel->createSheet();
     $sheetTitle = sanitizeSheetTitle('Compteurs_controles_' . $site_classe->intitule_site);
     $newsheet->setTitle($sheetTitle);
 
-    // Logo et en-tête (optionnel, vous pouvez ajouter un logo ici)
-    // Ajouter le titre
+    // Titre du site
     $newsheet->setCellValue("A" . $rowNumber, "LISTE DES COMPTEURS CONTROLES - " . $site_classe->intitule_site);
     cellStyle($newsheet, 'A' . $rowNumber, 14);
     $rowNumber++;
@@ -287,7 +286,6 @@ foreach ($liste_site as $site_item) {
                 $cvs->code = isset($row_["cvs_id"]) ? $row_["cvs_id"] : '';
                 $cvs->GetDetailIN();
                 
-                // Récupération des informations d'adresse avec vérification
                 $E_item = $adresseItem->GetAdressInfo($row_["adresse_id"] ?? '');
                 $numero = '';
                 $avenue = '';
@@ -303,7 +301,6 @@ foreach ($liste_site as $site_item) {
                 $adresse = $avenue . ' ' . $numero;
                 $nom_postnom = isset($row_["nom_client_blue"]) ? $row_["nom_client_blue"] : '';
 
-                // RECUPERATION INFOS FOUND INSTALL DURING CONTROLES
                 $row_install = $Installation->GetDetail_Light($row_["ref_last_install_found"] ?? '');
                 if ($row_install === false || $row_install === null) {
                     $row_install = array();
@@ -323,7 +320,6 @@ foreach ($liste_site as $site_item) {
                 $consommation_de_30jours_actuels = isset($row_["consommation_de_30jours_actuels"]) ? $row_["consommation_de_30jours_actuels"] : '';
                 $etat_fraude = isset($row_["cas_de_fraude"]) ? $row_["cas_de_fraude"] : '';
 
-                // Récupération des fraudes et observations
                 $item_ctl->ref_fiche_controle = isset($row_["ref_fiche_controle"]) ? $row_["ref_fiche_controle"] : '';
                 $data = $item_ctl->GetDetail($utilisateur->id_service_group ?? 0);
                 
@@ -351,11 +347,7 @@ foreach ($liste_site as $site_item) {
 
                 $diagnostics_general = isset($row_["diagnostics_general"]) ? $row_["diagnostics_general"] : '';
 
-                // ÉCRITURE DES CELLULES DATA
-                $newsheet->setCellValue($col . $rowNumber, $ctr_context);
-                cellBorder($newsheet, $col . $rowNumber);
-                $col++;
-
+                // ÉCRITURE DES DONNÉES SANS NUMÉROTATION
                 $newsheet->setCellValue($col . $rowNumber, $date_controle_fr);
                 cellBorder($newsheet, $col . $rowNumber);
                 $col++;
