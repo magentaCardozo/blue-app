@@ -44,7 +44,7 @@ $du = isset($_POST['Du']) ? Utils::ClientToDbDateFormat($_POST['Du']) : "";
 $au = isset($_POST['Au']) ? Utils::ClientToDbDateFormat($_POST['Au']) : "";
 $du_ = isset($_POST['Du']) ? ($_POST['Du']) : "";
 $au_ = isset($_POST['Au']) ? ($_POST['Au']) : "";
-$selected_cvs = isset($_POST['cvs']) ? $_POST['cvs'] : array(); // Récupération des CVS sélectionnés
+$selected_cvs = isset($_POST['cvs']) ? $_POST['cvs'] : array();
 
 $utilisateur->is_logged_in();
 $utilisateur->readOne();
@@ -117,6 +117,30 @@ try {
 
 	$query_installateurs_suppl = "SELECT t_utilisateurs.code_utilisateur,t_utilisateurs.nom_complet,t_log_installation_users.ref_inst_ FROM t_log_installation_users INNER JOIN t_utilisateurs ON t_log_installation_users.ref_user = t_utilisateurs.code_utilisateur where t_log_installation_users.ref_inst_=:ref_inst_";
 	$stmt_supp = $db->prepare($query_installateurs_suppl);
+	
+	// REQUÊTE POUR RÉCUPÉRER LES MATÉRIELS UTILISÉS PAR INSTALLATION
+	// Utilisation de '\n' comme séparateur pour avoir chaque matériel sur une ligne
+	$query_materiels = "SELECT 
+							i.id_install,
+							GROUP_CONCAT(CONCAT('- ', lm.designation, ' (', im.qte_identification, 'x)') SEPARATOR '\n') AS materiels_utilises
+						FROM 
+							t_log_installation i
+						LEFT JOIN 
+							t_log_installation_materiels im ON im.ref_identification = i.id_install
+						LEFT JOIN 
+							t_param_liste_materiels lm ON im.ref_article = lm.ref_produit
+						WHERE 
+							im.id_mat IS NOT NULL
+							AND i.id_install IS NOT NULL
+						GROUP BY 
+							i.id_install";
+	$stmt_materiels = $db->prepare($query_materiels);
+	$stmt_materiels->execute();
+	$materiels_data = array();
+	while ($row = $stmt_materiels->fetch(PDO::FETCH_ASSOC)) {
+		$materiels_data[$row['id_install']] = $row['materiels_utilises'];
+	}
+	
 	$objPHPExcel = new Spreadsheet();
 	$objPHPExcel->setActiveSheetIndex(0);
 	$newsheet = $objPHPExcel->getActiveSheet();
@@ -155,14 +179,12 @@ Kinshasa R. D. C";
 
 		$cvs_list = $cls_report->GetAll_Site_CVSList($site_item);
 		
-		// FILTRER LES CVS SI DES CVS SONT SÉLECTIONNÉS
 		if (!in_array('ALL', $selected_cvs) && !empty($selected_cvs)) {
 			$cvs_list = array_filter($cvs_list, function($cvs_item) use ($selected_cvs) {
 				return in_array($cvs_item['code'], $selected_cvs);
 			});
 		}
 		
-		// RÉINDEXER LE TABLEAU APRÈS FILTRAGE
 		$cvs_list = array_values($cvs_list);
 		
 		$count_cvs = count($cvs_list);
@@ -422,14 +444,12 @@ Kinshasa R. D. C";
 
 		$cvs_list = $cls_report->GetAll_Site_CVSList($site_item);
 		
-		// FILTRER LES CVS SI DES CVS SONT SÉLECTIONNÉS
 		if (!in_array('ALL', $selected_cvs) && !empty($selected_cvs)) {
 			$cvs_list = array_filter($cvs_list, function($cvs_item) use ($selected_cvs) {
 				return in_array($cvs_item['code'], $selected_cvs);
 			});
 		}
 		
-		// RÉINDEXER LE TABLEAU APRÈS FILTRAGE
 		$cvs_list = array_values($cvs_list);
 		
 		$count_cvs = count($cvs_list);
@@ -515,8 +535,18 @@ Kinshasa R. D. C";
 				cellColor($newsheet, 'T' . $rowNumber, '1a5da6');
 				$newsheet->getColumnDimension('T')->setAutoSize(true);
 
+				// NOUVEAU: Ajout de la colonne Matériels utilisés
+				$newsheet->mergeCells('U' . $rowNumber . ':V' . $rowNumber);
+				cellStyle($newsheet, 'U' . $rowNumber, 14);
+				$newsheet->setCellValue('U' . $rowNumber, "MATÉRIELS UTILISÉS");
+				cellBorder($newsheet, 'U' . $rowNumber . ':V' . $rowNumber);
+				cellAlign($newsheet, 'U' . $rowNumber, 'C');
+				cellColor($newsheet, 'U' . $rowNumber, '28a745');
+
 				$rowNumber++;
-				$headers_ = array("", "Quartier", "CVS", "Adresse (Avenue et N°)", "Noms et Postnoms", "PA (POC)", "Tarif", "Marque", "Numéro de compteur", "Date installation", "Equipe Installation", "Installateurs", "N° Scellé cpt 1", "N° Scellé coffret 2", "Date de pose scellé", "Marque", "Numéro de serie", "Index", "Date retrait", "Compteur prépaiement remplacé");
+				
+				// MODIFICATION: Ajout de "Matériels utilisés" dans le tableau des en-têtes
+				$headers_ = array("", "Quartier", "CVS", "Adresse (Avenue et N°)", "Noms et Postnoms", "PA (POC)", "Tarif", "Marque", "Numéro de compteur", "Date installation", "Equipe Installation", "Installateurs", "N° Scellé cpt 1", "N° Scellé coffret 2", "Date de pose scellé", "Marque", "Numéro de serie", "Index", "Date retrait", "Compteur prépaiement remplacé", "Matériels utilisés");
 
 				$newsheet->getColumnDimension('B')->setAutoSize(true);
 				$newsheet->getColumnDimension('C')->setAutoSize(true);
@@ -531,6 +561,9 @@ Kinshasa R. D. C";
 				$newsheet->getColumnDimension('O')->setAutoSize(true);
 				$newsheet->getColumnDimension('Q')->setAutoSize(true);
 				$newsheet->getColumnDimension('R')->setAutoSize(true);
+				// Ajuster la largeur de la colonne U pour les matériels
+				$newsheet->getColumnDimension('U')->setWidth(50);
+				$newsheet->getColumnDimension('V')->setWidth(50);
 
 				$col = 'A';
 				foreach ($headers_ as $cell) { 
@@ -653,8 +686,22 @@ Kinshasa R. D. C";
 					cellBorder($newsheet, $col . $rowNumber);
 					$col++;
 
+					// NOUVEAU: Récupération et ajout des matériels utilisés avec retour à la ligne
+					$id_install = isset($row_["id_install"]) ? $row_["id_install"] : '';
+					$materiels_utilises = '';
+					if (!empty($id_install) && isset($materiels_data[$id_install])) {
+						$materiels_utilises = $materiels_data[$id_install];
+					}
+					$newsheet->setCellValue($col . $rowNumber, $materiels_utilises);
+					// Activer le retour à la ligne automatique pour la cellule
+					$newsheet->getStyle($col . $rowNumber)->getAlignment()->setWrapText(true);
+					// Ajuster la hauteur de la ligne automatiquement
+					$newsheet->getRowDimension($rowNumber)->setRowHeight(-1);
+					cellBorder($newsheet, $col . $rowNumber);
+					$col++;
+
 					if ($rowNumber % 2 == 0) {
-						$rowRange = 'A' . $rowNumber . ':T' . $rowNumber;
+						$rowRange = 'A' . $rowNumber . ':V' . $rowNumber;
 						$newsheet->getStyle($rowRange)->getFill()
 							->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
 							->getStartColor()->setARGB('FFD6E2F0');

@@ -187,59 +187,59 @@ try {
      * @param string $au Date de fin (format YYYY-MM-DD HH:MM:SS)
      * @return array Tableau des données d'assignation
      */
-    function getAssignationData($db, $cvs_code, $du, $au)
-    {
-        $query = "
-            SELECT 
-                DATE_FORMAT(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s'), '%d/%m/%Y') AS date_assignation,
-                a.id_technicien,
-                u.nom_complet AS technicien,
-                cvs.libelle AS cvs,
-                COUNT(DISTINCT a.id_assign) AS assignations_recues,
-                COUNT(DISTINCT c.ref_fiche_controle) AS controles_realises,
-                COUNT(DISTINCT a.id_assign) - COUNT(DISTINCT c.ref_fiche_controle) AS en_attente,
-                ROUND((COUNT(DISTINCT c.ref_fiche_controle) / NULLIF(COUNT(DISTINCT a.id_assign), 0)) * 100, 1) AS taux_realisation,
-                COUNT(DISTINCT 
-                    CASE 
-                        WHEN o.ref_control_obs IS NOT NULL AND o.annule = 0 
-                        THEN o.ref_control_obs 
-                    END
-                ) AS non_conformites
-            FROM 
-                t_param_assignation a
-                INNER JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur
-                INNER JOIN t_param_cvs cvs ON cvs.code = :cvs_code
-                INNER JOIN t_main_data md ON a.id_fiche_identif = md.id_
-                LEFT JOIN t_log_controle c ON md.id_ = c.ref_fiche_identification 
-                    AND c.annule = 0
-                    -- SUPPRESSION DE: AND c.statut_controle IN ('1', '2', 'R')
-                    AND DATE(c.date_controle) = DATE(a.date_execution)
-                LEFT JOIN t_log_controle_observations o ON c.ref_fiche_controle = o.ref_fiche_control 
-                    AND o.annule = 0
-            WHERE 
-                a.annule = 0 
-                AND a.statut_ = 1
-                AND a.type_assignation = 1
-                AND md.cvs_id = :cvs_code
-                AND STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s') BETWEEN :du AND :au
-            GROUP BY 
-                DATE(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s')),
-                a.id_technicien,
-                u.nom_complet,
-                cvs.libelle
-            ORDER BY 
-                u.nom_complet,
-                DATE(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s')) DESC
-        ";
+function getAssignationData($db, $cvs_code, $du, $au)
+{
+    $query = "
+        SELECT 
+            DATE_FORMAT(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s'), '%d/%m/%Y') AS date_assignation,
+            a.id_technicien,
+            u.nom_complet AS technicien,
+            cvs.libelle AS cvs,
+            COUNT(DISTINCT a.id_assign) AS assignations_recues,
+            COUNT(DISTINCT c.ref_fiche_controle) AS controles_realises,
+            COUNT(DISTINCT a.id_assign) - COUNT(DISTINCT c.ref_fiche_controle) AS en_attente,
+            ROUND((COUNT(DISTINCT c.ref_fiche_controle) / NULLIF(COUNT(DISTINCT a.id_assign), 0)) * 100, 1) AS taux_realisation,
+            COUNT(DISTINCT 
+                CASE 
+                    WHEN o.ref_control_obs IS NOT NULL AND o.annule = 0 
+                    THEN o.ref_control_obs 
+                END
+            ) AS non_conformites
+        FROM 
+            t_param_assignation a
+            INNER JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur
+            INNER JOIN t_param_cvs cvs ON cvs.code = :cvs_code
+            INNER JOIN t_main_data md ON a.id_fiche_identif = md.id_
+            LEFT JOIN t_log_controle c ON md.id_ = c.ref_fiche_identification 
+                AND c.annule = 0
+                AND DATE(c.date_controle) = DATE(a.date_execution)
+            LEFT JOIN t_log_controle_observations o ON c.ref_fiche_controle = o.ref_fiche_control 
+                AND o.annule = 0
+        WHERE 
+            a.annule = 0 
+            AND a.statut_ = 1
+            AND a.type_assignation = 1
+            AND md.cvs_id = :cvs_code
+            AND STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s') BETWEEN :du AND :au
+        GROUP BY 
+            DATE(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s')),
+            a.id_technicien,
+            u.nom_complet,
+            cvs.libelle,
+            a.datesys  -- Added a.datesys to GROUP BY
+        ORDER BY 
+            u.nom_complet,
+            DATE(STR_TO_DATE(a.datesys, '%Y-%m-%d %H:%i:%s')) DESC
+    ";
+
+    $stmt = $db->prepare($query);
+    $stmt->bindValue(":cvs_code", $cvs_code);
+    $stmt->bindValue(":du", $du);
+    $stmt->bindValue(":au", $au);
+    $stmt->execute();
     
-        $stmt = $db->prepare($query);
-        $stmt->bindValue(":cvs_code", $cvs_code);
-        $stmt->bindValue(":du", $du);
-        $stmt->bindValue(":au", $au);
-        $stmt->execute();
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
     /**
      * Récupère la synthèse par technicien pour un CVS donné
