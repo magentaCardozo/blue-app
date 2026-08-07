@@ -226,7 +226,7 @@ class AdresseEntity
 		$stmt->bindValue(":id", $_id);
 		$stmt->execute();
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		return $row['libelle'];
+		return $row['libelle'] ?? '';
 	}
 
 
@@ -242,25 +242,50 @@ class AdresseEntity
 			return $stmt->fetch(PDO::FETCH_ASSOC);
 		});
 
-		$this->code = 	$row['ville_id'];
-		$ville_id = $this->GetDetail();
+		// Vérifier si $row est null ou false avant d'accéder aux indices
+		if (!$row) {
+			return "Adresse non trouvée";
+		}
 
-		$this->code = 	$row['commune_id'];
-		$commune_id = $this->GetDetail();
+		// Récupérer chaque élément avec une valeur par défaut si null
+		$ville_id = !empty($row['ville_id']) ? $this->GetDetailById($row['ville_id']) : ['libelle' => ''];
+		$commune_id = !empty($row['commune_id']) ? $this->GetDetailById($row['commune_id']) : ['libelle' => ''];
+		$quartier_id = !empty($row['quartier_id']) ? $this->GetDetailById($row['quartier_id']) : ['libelle' => ''];
+		$avenue = !empty($row['avenue']) ? $this->GetDetailById($row['avenue']) : ['libelle' => ''];
+		
+		$numero = $row['numero'] ?? '';
 
-		$this->code = 	$row['quartier_id'];
-		$quartier_id = $this->GetDetail();
+		// Construction de l'adresse texte avec vérification des libellés
+		$ville_libelle = isset($ville_id['libelle']) ? $ville_id['libelle'] : '';
+		$avenue_libelle = isset($avenue['libelle']) ? $avenue['libelle'] : '';
+		$quartier_libelle = isset($quartier_id['libelle']) ? $quartier_id['libelle'] : '';
+		$commune_libelle = isset($commune_id['libelle']) ? $commune_id['libelle'] : '';
 
-		$this->code = 	$row['avenue'];
-		$avenue = $this->GetDetail();
+		$adresse_texte = $ville_libelle . ", N° " . $numero . " Av/" . $avenue_libelle . " Q/" . $quartier_libelle . " C/" . $commune_libelle;
 
-		$numero = $row['numero'];
-
-		$adresse_texte = $ville_id['libelle'] . ", N° " . $numero . " Av/" . $avenue['libelle'] . " Q/" . $quartier_id['libelle'] . " C/" . $commune_id['libelle'];
-
-		//code,category_id,parent_id,libelle 
 		return $adresse_texte;
 	}
+
+	// Nouvelle méthode pour obtenir les détails par ID avec cache
+	function GetDetailById($id)
+	{
+		if (empty($id)) {
+			return ['libelle' => ''];
+		}
+		
+		$query = "SELECT code, libelle FROM " . $this->table_name . " WHERE code = ?";
+		$stmt = $this->connection->prepare($query);
+		$stmt->bindParam(1, $id);
+		
+		$cacher = new Cacher();
+		$row = $cacher->get(['adresseEntity-get-detail-by-id', $id], function () use ($stmt) {
+			$stmt->execute();
+			return $stmt->fetch(PDO::FETCH_ASSOC);
+		});
+		
+		return $row ?: ['libelle' => ''];
+	}
+	
 	function Create()
 	{
 		$this->libelle = strip_tags($this->libelle);
@@ -372,7 +397,7 @@ class AdresseEntity
 			return $stmt->fetch(PDO::FETCH_ASSOC);
 		});
 
-		return $row;
+		return $row ?: ['code' => '', 'category_id' => '', 'parent_id' => '', 'libelle' => ''];
 	}
 
 	function GetProvinceAllCommune($id_)
@@ -490,8 +515,8 @@ class AdresseEntity
 		$stmt->bindParam(1, $this->code);
 		$stmt->execute();
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		$this->code = $row["code"];
-		$this->libelle = $row["libelle"];
+		$this->code = $row["code"] ?? '';
+		$this->libelle = $row["libelle"] ?? '';
 	}
 	function read($category_id)
 	{
@@ -535,7 +560,7 @@ class AdresseEntity
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(':search_term', $search_term);
 		$stmt->bindParam(':from', $from_record_num, PDO::PARAM_INT);
-		$stmt->bindParam(':category_id', $category_id, $category_id);
+		$stmt->bindParam(':category_id', $category_id);
 		$stmt->bindParam(':offset', $records_per_page, PDO::PARAM_INT);
 		$stmt->execute();
 		return $stmt;
@@ -558,7 +583,7 @@ class AdresseEntity
 		$stmt->bindParam(":category_id", $category_id);
 		$stmt->execute();
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		return $row["total_rows"];
+		return $row["total_rows"] ?? 0;
 	}
 
 

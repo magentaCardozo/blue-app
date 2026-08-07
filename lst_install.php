@@ -2917,222 +2917,294 @@ body { background: linear-gradient(to left, rgb(86, 171, 47), rgb(168, 224, 99))
 
 				load_chief = true;
 			}
-			$('#btn_save_install').click(function() {
+$('#btn_save_install').click(function() {
+    // 1. Gestion des validations selon le type d'opération
+    var operation = $("#mainForm_install #view").val();
+    if (operation == 'create_install_rpl') {
+        $("#post_paie_trouver").attr('required', false);
+        $("#motif_en_cours").attr('required', false);
+    } else if (operation == 'edit_install') {
+        $("#post_paie_trouver").attr('required', false);
+    }
 
-				var opera_tion = $("#mainForm_install #view").val();
-				if (opera_tion == 'create_install_rpl') {
-					$("#post_paie_trouver").attr('required', false);
-					$("#motif_en_cours").attr('required', false);
-				} else if (opera_tion == 'edit_install') {
-					$("#post_paie_trouver").attr('required', false);
-				}
-				var frm = $("#mainForm_install");
-				if (frm.parsley().validate()) {
-					// alert("oui");				   
-				} else {
-					// alert("non"); 
-					return false;
-				}
+    // 2. Validation Parsley.js du formulaire
+    var frm = $("#mainForm_install");
+    if (frm.parsley().validate()) {
+        // Le formulaire est valide
+    } else {
+        // Le formulaire n'est pas valide
+        return false;
+    }
 
-				// papa pathy
+    // 3. Validation spécifique : vérifier qu'au moins un matériel est ajouté
+    var rows_count = $('#lignes_install tbody tr.item-row-install').length;
+    var typ = $('#mainForm_install #view').val();
+    
+    // Pour une nouvelle installation ou un remplacement, les matériels sont obligatoires
+    if (rows_count == 0 && (typ == 'create_install' || typ == 'create_install_rpl')) {
+        swal({
+            title: "Information",
+            text: "Veuillez définir au moins un matériel utilisé",
+            type: "error",
+            showCancelButton: false,
+            confirmButtonColor: "#DD6B55",
+            confirmButtonText: "Ok",
+            closeOnConfirm: true,
+            closeOnCancel: false
+        }, function(isConfirm) {
+            // Mettre en évidence la section des matériels
+            $('#lignes_install').closest('.card').css('border-color', '#dc3545');
+            // Scroll vers la section
+            $('html, body').animate({
+                scrollTop: $('#lignes_install').closest('.card').offset().top - 100
+            }, 500);
+        });
+        return false;
+    }
 
-				var form = document.getElementById("mainForm_install");
-				// Create a FormData and append the file with "image" as parameter name
-				var formDataToUpload = new FormData(form);
-				var numero_compteur = $('#numero_compteur').val();
-				var marque_compteur = $('#marque_compteur').val();
-				var lst_materiels = '[';
-				var has_Rows = false;
-				var otArr = [];
-				var rows_count = $('#lignes_install tbody tr.item-row-install');
-				$('#lignes_install tbody tr.item-row-install').each(function(i) {
-					var itArr = [];
-					has_Rows = true;
-					var item_row_id = $(this).attr('item-id');
-					/*var item_row_data_id = $(this).attr('data-id-install');*/
-					//var item_row_label =$('tr.item-row-install[item-id="' + item_row_id + '"]').find('span.sn').html();
-					var item_row_label = $(this).attr('materiel-id');
-					var item_row_qte = $('tr.item-row-install[item-id="' + item_row_id + '"]').find('span.qte').html();
-					otArr.push("{\"libelle\":\"" + item_row_label + "\",\"qte\":\"" + item_row_qte + "\"}");
-				});
-				var typ = $('#mainForm_install #view').val();
-				var doc_save_mode = $('#doc_save_mode').val();
-				if (has_Rows == false && typ == '0') {
-					swal("Information", "Veuillez définir les matériels utilisés", "error");
-					return false;
-				}
-				lst_materiels += otArr.join(",") + ']';
-				// Get the form
+    // 4. Construction de la liste des matériels
+    var lst_materiels = '[';
+    var has_Rows = false;
+    var otArr = [];
+    var rows_count = $('#lignes_install tbody tr.item-row-install');
+    $('#lignes_install tbody tr.item-row-install').each(function(i) {
+        var itArr = [];
+        has_Rows = true;
+        var item_row_id = $(this).attr('item-id');
+        var item_row_label = $(this).attr('materiel-id');
+        var item_row_qte = $('tr.item-row-install[item-id="' + item_row_id + '"]').find('span.qte').html();
+        otArr.push("{\"libelle\":\"" + item_row_label + "\",\"qte\":\"" + item_row_qte + "\"}");
+    });
+    
+    // 5. Vérification supplémentaire pour les autres types d'opérations
+    var doc_save_mode = $('#doc_save_mode').val();
+    if (has_Rows == false && typ != 'edit_install' && typ != 'create_install_rpl') {
+        swal({
+            title: "Information",
+            text: "Veuillez définir les matériels utilisés",
+            type: "error",
+            showCancelButton: false,
+            confirmButtonColor: "#DD6B55",
+            confirmButtonText: "Ok",
+            closeOnConfirm: true,
+            closeOnCancel: false
+        }, function(isConfirm) {
+            // Mettre en évidence la section des matériels
+            $('#lignes_install').closest('.card').css('border-color', '#dc3545');
+            // Scroll vers la section
+            $('html, body').animate({
+                scrollTop: $('#lignes_install').closest('.card').offset().top - 100
+            }, 500);
+        });
+        return false;
+    }
+    
+    lst_materiels += otArr.join(",") + ']';
 
-				ShowLoader("Enregistrement en cours...");
-				///Imagery
-				var base64image = document.getElementById("photo_compteur").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_compteur", blob);
-				}
-				///Imagery
-				var base64image = document.getElementById("photo_compteur_post_paie").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_compteur_post_paie", blob);
-				}
+    // 6. Récupération du formulaire
+    var form = document.getElementById("mainForm_install");
+    var formDataToUpload = new FormData(form);
+    var numero_compteur = $('#numero_compteur').val();
+    var marque_compteur = $('#marque_compteur').val();
 
-				base64image = document.getElementById("photo_avant_install").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_avant_install", blob);
-				}
+    // 7. Traitement des photos
+    // Photo compteur
+    var base64image = document.getElementById("photo_compteur").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_compteur", blob);
+    }
 
-				base64image = document.getElementById("photo_apres_install").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_apres_install", blob);
-				}
+    // Photo compteur post-paie
+    base64image = document.getElementById("photo_compteur_post_paie").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_compteur_post_paie", blob);
+    }
 
-				base64image = document.getElementById("photo_sceller_un").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_sceller_un", blob);
-				}
+    // Photo avant installation
+    base64image = document.getElementById("photo_avant_install").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_avant_install", blob);
+    }
 
-				base64image = document.getElementById("photo_sceller_deux").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_sceller_deux", blob);
-				}
+    // Photo après installation
+    base64image = document.getElementById("photo_apres_install").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_apres_install", blob);
+    }
 
-				base64image = document.getElementById("photo_compteur_defectueux").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formDataToUpload.append("photo_compteur_defectueux", blob);
-				}
-				formDataToUpload.append("numero_compteur", numero_compteur);
-				formDataToUpload.append("marque_compteur", marque_compteur);
+    // Photo scelle 1
+    base64image = document.getElementById("photo_sceller_un").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_sceller_un", blob);
+    }
 
+    // Photo scelle 2
+    base64image = document.getElementById("photo_sceller_deux").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_sceller_deux", blob);
+    }
 
-				formDataToUpload.append("lst_materiels", lst_materiels);
+    // Photo compteur defectueux
+    base64image = document.getElementById("photo_compteur_defectueux").src;
+    if (base64image.match(/^data\:image\/(\w+)/)) {
+        var block = base64image.split(";");
+        var contentType = block[0].split(":")[1];
+        var realData = block[1].split(",")[1];
+        var blob = b64toBlob(realData, contentType);
+        formDataToUpload.append("photo_compteur_defectueux", blob);
+    }
 
-				$.ajax({
-					//enctype: 'multipart/form-data',
-					url: "controller.php",
-					data: formDataToUpload, // Add as Data the Previously create formData
-					type: "POST",
-					contentType: false,
-					processData: false,
-					cache: false,
-					dataType: "json", // Change this according to your response from the server.
+    // 8. Ajout des données supplémentaires
+    formDataToUpload.append("numero_compteur", numero_compteur);
+    formDataToUpload.append("marque_compteur", marque_compteur);
+    formDataToUpload.append("lst_materiels", lst_materiels);
 
-					beforeSend: function() {
-						// ShowLoader("Enregistrement en cours..."); 
-					},
-					error: function(err) {
-						console.error(err);
-						swal({
-							title: "Information",
-							text: "Serveur non disponible",
-							type: "error",
-							showCancelButton: false,
-							confirmButtonColor: "#DD6B55",
-							confirmButtonText: "Ok",
-							closeOnConfirm: true,
-							closeOnCancel: false
-						}, function(isConfirm) {});
-					},
-					success: function(result) {
-						console.log(result);
-						try {
-							if (result.error == 0) {
-								swal({
-									title: "Information",
-									text: result.message,
-									type: "success",
-									showCancelButton: false,
-									confirmButtonColor: "#00A65A",
-									confirmButtonText: "Ok",
-									closeOnConfirm: true,
-									closeOnCancel: false
-								}, function(isConfirm) {
+    // 9. Affichage du loader
+    ShowLoader("Enregistrement en cours...");
 
-									var op_ref = $('#dlg_main-install #view').val();
+    // 10. Envoi de la requête AJAX
+    $.ajax({
+        //enctype: 'multipart/form-data',
+        url: "controller.php",
+        data: formDataToUpload,
+        type: "POST",
+        contentType: false,
+        processData: false,
+        cache: false,
+        dataType: "json",
 
-									if (op_ref == 'create_install' || op_ref == 'create_install_rpl') {
-										$('#id_install').val(result.id);
+        beforeSend: function() {
+            // ShowLoader("Enregistrement en cours..."); 
+        },
+        error: function(err) {
+            console.error(err);
+            swal({
+                title: "Information",
+                text: "Serveur non disponible",
+                type: "error",
+                showCancelButton: false,
+                confirmButtonColor: "#DD6B55",
+                confirmButtonText: "Ok",
+                closeOnConfirm: true,
+                closeOnCancel: false
+            }, function(isConfirm) {});
+        },
+        success: function(result) {
+            console.log(result);
+            try {
+                if (result.error == 0) {
+                    swal({
+                        title: "Information",
+                        text: result.message,
+                        type: "success",
+                        showCancelButton: false,
+                        confirmButtonColor: "#00A65A",
+                        confirmButtonText: "Ok",
+                        closeOnConfirm: true,
+                        closeOnCancel: false
+                    }, function(isConfirm) {
 
-										$("#dlg_main-install #view").val("edit_install");
+                        var op_ref = $('#dlg_main-install #view').val();
 
-										$('#Heading-install').html("MISE A JOUR INFORMATIONS DE L' INSTALLATION");
-										$('#btn_save_install').find('span.sn').html('Valider');
+                        if (op_ref == 'create_install' || op_ref == 'create_install_rpl') {
+                            $('#id_install').val(result.id);
+                            $("#dlg_main-install #view").val("edit_install");
+                            $('#Heading-install').html("MISE A JOUR INFORMATIONS DE L' INSTALLATION");
+                            $('#btn_save_install').find('span.sn').html('Valider');
+                        } else {
+                            ClearForm_install();
+                            ClearMaterielsRow();
+                            $("#dlg_main-install").hide();
+                            window.location.reload();
+                        }
+                    });
+                } else if (result.error == 1) {
+                    var need_reconnect = result.reconnect != null ? result.reconnect : false;
+                    if (need_reconnect == true) {
+                        Reconnect();
+                    } else {
+                        swal({
+                            title: "Information",
+                            text: result.message,
+                            type: "error",
+                            showCancelButton: false,
+                            confirmButtonColor: "#DD6B55",
+                            confirmButtonText: "Ok",
+                            closeOnConfirm: true,
+                            closeOnCancel: false
+                        }, function(isConfirm) {});
+                    }
+                }
+            } catch (erreur) {
+                swal({
+                    title: "Information",
+                    text: "Echec d'execution de la requete",
+                    type: "error",
+                    showCancelButton: false,
+                    confirmButtonColor: "#DD6B55",
+                    confirmButtonText: "Ok",
+                    closeOnConfirm: true,
+                    closeOnCancel: false
+                }, function(isConfirm) {});
+            }
+        },
+        complete: function() {
+            HideLoader();
+            console.log("Request finished.");
+        }
+    });
 
-									} else {
-										ClearForm_install();
-										ClearMaterielsRow();
-										$("#dlg_main-install").hide();
-										window.location.reload();
-									}
-								});
-							} else if (result.error == 1) {
+});
 
-								var need_reconnect = result.reconnect != null ? result.reconnect : false;
-								if (need_reconnect == true) {
-									Reconnect();
-								} else {
+// Fonction helper pour convertir base64 en blob
+function b64toBlob(b64Data, contentType, sliceSize) {
+    contentType = contentType || '';
+    sliceSize = sliceSize || 512;
 
-									swal({
-										title: "Information",
-										text: result.message,
-										type: "error",
-										showCancelButton: false,
-										confirmButtonColor: "#DD6B55",
-										confirmButtonText: "Ok",
-										closeOnConfirm: true,
-										closeOnCancel: false
-									}, function(isConfirm) {});
+    var byteCharacters = atob(b64Data);
+    var byteArrays = [];
 
+    for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        var slice = byteCharacters.slice(offset, offset + sliceSize);
 
-								}
-							}
-						} catch (erreur) {
-							swal({
-								title: "Information",
-								text: "Echec d'execution de la requete",
-								type: "error",
-								showCancelButton: false,
-								confirmButtonColor: "#DD6B55",
-								confirmButtonText: "Ok",
-								closeOnConfirm: true,
-								closeOnCancel: false
-							}, function(isConfirm) {});
-						}
-					},
-					complete: function() {
-						HideLoader();
-						console.log("Request finished.");
-					}
-				});
+        var byteNumbers = new Array(slice.length);
+        for (var i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
 
-			});
+        var byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+    }
+
+    var blob = new Blob(byteArrays, {
+        type: contentType
+    });
+    return blob;
+}
 
 			function b64toBlob(b64Data, contentType, sliceSize) {
 				contentType = contentType || '';
