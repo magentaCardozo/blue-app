@@ -890,16 +890,41 @@ class Installation
 
 		return $result;
 	}
-	function GetDetail_Light($ref_install)
-	{
-		$query = "SELECT DATE_FORMAT(t_log_installation.date_fin_installation,'%d/%m/%Y') AS date_fin_installation_fr,t_log_installation.marque_cpteur_post_paie,DATE_FORMAT(STR_TO_DATE(t_log_installation.date_retrait_cpteur_post_paie,'%Y-%m-%d'),'%d/%m/%Y') as date_retrait_cpteur_post_paie_fr,t_log_installation.num_serie_cpteur_post_paie,t_log_installation.index_credit_restant_cpteur_post_paie,t_log_installation.num_serie_cpteur_replaced,t_log_installation.marque_compteur,t_log_installation.numero_compteur,t_log_installation.scelle_un_cpteur,t_log_installation.scelle_deux_coffret,t_log_installation.type_installation,DATE_FORMAT(STR_TO_DATE(t_log_installation.date_pose_scelle,'%Y-%m-%d'),'%d/%m/%Y') as date_pose_scelle_fr,t_log_installation.statut_installation,t_log_installation.date_pose_scelle,t_log_installation.marque_cpteur_replaced,t_log_installation.is_draft_install,t_log_installation.etat_compteur_reaffected,t_log_installation.approbation_installation FROM t_log_installation  WHERE t_log_installation.id_install = ? LIMIT 0,1";
-		$stmt = $this->connection->prepare($query);
-		$ref_install = (strip_tags($ref_install));
-		$stmt->bindParam(1, $ref_install);
-		$stmt->execute();
-		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		return $row;
-	}
+function GetDetail_Light($ref_install)
+{
+    $query = "SELECT 
+        DATE_FORMAT(t_log_installation.date_debut_installation,'%d/%m/%Y') AS date_debut_installation_fr,
+        DATE_FORMAT(t_log_installation.date_fin_installation,'%d/%m/%Y') AS date_fin_installation_fr,
+        t_log_installation.date_debut_installation,
+        t_log_installation.date_fin_installation,
+        t_log_installation.marque_cpteur_post_paie,
+        DATE_FORMAT(STR_TO_DATE(t_log_installation.date_retrait_cpteur_post_paie,'%Y-%m-%d'),'%d/%m/%Y') as date_retrait_cpteur_post_paie_fr,
+        t_log_installation.num_serie_cpteur_post_paie,
+        t_log_installation.index_credit_restant_cpteur_post_paie,
+        t_log_installation.num_serie_cpteur_replaced,
+        t_log_installation.marque_compteur,
+        t_log_installation.numero_compteur,
+        t_log_installation.scelle_un_cpteur,
+        t_log_installation.scelle_deux_coffret,
+        t_log_installation.type_installation,
+        DATE_FORMAT(STR_TO_DATE(t_log_installation.date_pose_scelle,'%Y-%m-%d'),'%d/%m/%Y') as date_pose_scelle_fr,
+        t_log_installation.statut_installation,
+        t_log_installation.date_pose_scelle,
+        t_log_installation.marque_cpteur_replaced,
+        t_log_installation.is_draft_install,
+        t_log_installation.etat_compteur_reaffected,
+        t_log_installation.approbation_installation 
+    FROM t_log_installation  
+    WHERE t_log_installation.id_install = ? 
+    LIMIT 0,1";
+    
+    $stmt = $this->connection->prepare($query);
+    $ref_install = (strip_tags($ref_install));
+    $stmt->bindParam(1, $ref_install);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row;
+}
 
 	//public function uniqUid($len = 13) {  
 	public function uniqUid($table, $key_fld)
