@@ -326,6 +326,7 @@ $utilisateur->readOne();
 	<link href="assets/css/select2.css" rel="stylesheet">
 
 	<link href="assets/css/parsley.css" rel="stylesheet">
+	<link href="assets/css/lightgallery.css" rel="stylesheet">
 	<link rel="stylesheet" href="assets/css/leaflet.css" />
 	<script src="assets/js/leaflet.js"></script>
 	<?php
@@ -2683,6 +2684,36 @@ $utilisateur->readOne();
 					if (!$('body').hasClass('modal-open'))
 						$('body').addClass('modal-open');
 				}
+				// Initialize lightGallery on all multi-image viewers inside fiche_viewer
+				$('#fiche_viewer .multi-image-viewer').each(function() {
+					var $wrap = $(this);
+					var galleryId = $wrap.data('gallery-id');
+					var links = $wrap.find('.lg-image-link');
+					if (links.length === 0) return;
+					links.on('click', function(e) {
+						e.preventDefault();
+						var allImages = [];
+						links.each(function(idx) {
+							allImages.push({
+								src: $(this).attr('data-src'),
+								thumb: $(this).attr('data-src')
+							});
+						});
+						var clickedIdx = links.index($(this));
+						if ($wrap.data('lightGallery')) {
+							$wrap.data('lightGallery').destroy(true);
+						}
+						$wrap.lightGallery({
+							dynamic: true,
+							index: clickedIdx,
+							dynamicEl: allImages,
+							closable: true,
+							loop: true,
+							counter: true,
+							download: false
+						});
+					});
+				});
 			}
 
 			function CloseFiche() {
@@ -3308,6 +3339,7 @@ $utilisateur->readOne();
 	<!--  <script type="text/javascript" src="assets/js/webcam.min.js"></script>  -->
 	<script type="text/javascript" src="assets/js/WebcamEasyNew.js"></script>
 	<script src="assets/js/parsley.js"></script>
+	<script src="assets/js/lightgallery-all.js"></script>
 	<script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
 	<!-- Configure a few settings and attach camera -->
 	<!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1vmpecnt_2I2qzPz6BjQd2ZFo4PurMkA&libraries=geometry&callback=initMap" async></script> -->
