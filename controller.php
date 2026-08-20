@@ -592,23 +592,14 @@ switch ($view) {
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12">
                             <div class="card">
 								<div class="card-body">
-								 <div class="form-group">
-                                    <label>PHOTO COMPTEUR</label>
-                                    <div class="input-group" style="width: 100%;"> 
-                                        <img style="height:300px;" class="form-control pull-right" src="pictures/' . $data['data']['ref_fiche_controle'] .  '_CTL_CTR.png">
-                                    </div>                
-                                </div>
+								 ' . getMultiImageHtml($data['data']['ref_fiche_controle'], '_CTL_CTR', 'PHOTO COMPTEUR') . '
 								</div>
                             </div>
                         </div>
 					<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12">
                             <div class="card">
 								<div class="card-body">			
-								 <div class="form-group">
-                                    <label>PHOTO AVANT CONTROLE</label>
-									<div class="input-group" style="width: 100%;"> 
-                                        <img style="height:300px;" class="form-control pull-right"  src="pictures/' . $data['data']['ref_fiche_controle'] .  '_CTL_BFR.png">
-                                    </div>                
+								 ' . getMultiImageHtml($data['data']['ref_fiche_controle'], '_CTL_BFR', 'PHOTO AVANT CONTROLE') . '
                                 </div>
                                 </div>
                                 </div>
@@ -616,12 +607,7 @@ switch ($view) {
 					<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_sceller_un">
                             <div class="card">
 								<div class="card-body">			
-								 <div class="form-group">
-                                    <label>PHOTO APRES CONTROLE</label>
-
-                                    <div class="input-group" style="width: 100%;"> 
-                                        <img style="height:300px;" class="form-control pull-right"  src="pictures/' . $data['data']['ref_fiche_controle'] .  '_CTL_AFT.png">
-                                    </div>                
+								 ' . getMultiImageHtml($data['data']['ref_fiche_controle'], '_CTL_AFT', 'PHOTO APRES CONTROLE') . '
                                 </div>
                                 </div>
                                 </div>
@@ -631,13 +617,7 @@ switch ($view) {
 					  <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_sceller_un">
                             <div class="card">
 								<div class="card-body">			
-								 <div class="form-group">
-                                    <label>PHOTO SCELLE 1</label>
-
-
-                                    <div class="input-group" style="width: 100%;"> 
-                                        <img style="height:300px;" class="form-control pull-right" id="photo_sceller_un" src="pictures/' . $data['data']['ref_fiche_controle'] .  '_CTL_SC1.png">
-                                    </div>                
+								 ' . getMultiImageHtml($data['data']['ref_fiche_controle'], '_CTL_SC1', 'PHOTO SCELLE 1') . '
                                 </div>
                                 </div>
                                 </div>
@@ -646,11 +626,7 @@ switch ($view) {
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_scelle_deux">
                             <div class="card">
 								<div class="card-body">			
-								 <div class="form-group">
-                                    <label>PHOTO SCELLE 2</label>									
-                                    <div class="input-group" style="width: 100%;"> 
-                                        <img style="height:300px;" class="form-control pull-right" id="photo_sceller_deux" src="pictures/' . $data['data']['ref_fiche_controle'] .  '_CTL_SC2.png">
-                                    </div>                
+								 ' . getMultiImageHtml($data['data']['ref_fiche_controle'], '_CTL_SC2', 'PHOTO SCELLE 2') . '
                                 </div>
 								</div>
                             </div>
@@ -879,12 +855,7 @@ switch ($view) {
 				$result .= '</div>
 									<div class="card">
 											<div class="card-body">			
-											 <div class="form-group">
-												<label>PHOTO SIGNATURE CLIENT</label>
-												<div class="input-group" style="width: 100%;"> 
-													<img style="height:300px;" class="form-control pull-right"  src="pictures/' . $data['data']['ref_fiche_controle'] . '_CTL_SGN.png">
-												</div>                
-											</div>
+											 ' . getMultiImageHtml($data['data']['ref_fiche_controle'], '_CTL_SGN', 'PHOTO SIGNATURE CLIENT') . '
 											</div> 
 									</div>';
 				$refus_client_de_signer = $data['data']['refus_client_de_signer'] == 'on' ? "checked" : "";
@@ -6638,7 +6609,13 @@ DroitsNotGranted();
 			$item->dernier_sceller_coffret = isset($_POST["dernier_sceller_coffret"]) ? $_POST["dernier_sceller_coffret"] : "";
 
 			if ($item->refus_client_de_signer == '') {
-				if (isset($_FILES['photo_signature_client']) == FALSE) {
+				// Check if signature image is missing (multi-image or single)
+				$hasSignature = isset($_FILES['photo_signature_client']) && 
+					(
+						(is_array($_FILES['photo_signature_client']['name']) && count(array_filter($_FILES['photo_signature_client']['name'])) > 0) ||
+						(!is_array($_FILES['photo_signature_client']['name']) && !empty($_FILES['photo_signature_client']['name']))
+					);
+				if (!$hasSignature) {
 					$v = $utilisateur->GetSettingValue('24');
 					if ($v == '1') {
 						$result_array["error"] = true;
@@ -6843,9 +6820,35 @@ DroitsNotGranted();
 		if ($_GET) {
 			$item = new CLS_Controle($db);
 			$item->ref_fiche_controle = isset($_GET["k"]) ? $_GET["k"] : "";
-			$result_array = $item->GetDetail($utilisateur->id_service_group);
-			$result_array['readOnly'] = 0;
-			Utils::responseJson($result_array);
+		$result_array = $item->GetDetail($utilisateur->id_service_group);
+		$result_array['readOnly'] = 0;
+
+		// Scan for existing multi-images and include in response
+		$ref = $result_array['data']['ref_fiche_controle'];
+		$imgFields = array(
+			'photo_compteur' => '_CTL_CTR',
+			'photo_avant_control' => '_CTL_BFR',
+			'photo_apres_control' => '_CTL_AFT',
+			'photo_sceller_un' => '_CTL_SC1',
+			'photo_sceller_deux' => '_CTL_SC2',
+			'photo_signature_client' => '_CTL_SGN'
+		);
+		$result_array['images'] = array();
+		foreach ($imgFields as $fieldName => $suffix) {
+			$result_array['images'][$fieldName] = array();
+			for ($n = 1; $n <= 4; $n++) {
+				if ($n === 1) {
+					$imgPath = 'pictures/' . $ref . $suffix . '.png';
+				} else {
+					$imgPath = 'pictures/' . $ref . $suffix . '_' . $n . '.png';
+				}
+				if (file_exists($imgPath) && filesize($imgPath) > 0) {
+					$result_array['images'][$fieldName][] = $imgPath;
+				}
+			}
+		}
+
+		Utils::responseJson($result_array);
 		}
 		/*}else{
 					DroitsNotGranted();					
@@ -7974,79 +7977,107 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 
 	Utils::F_Exist('pictures');
 	Utils::F_Exist('pictures_temp');
-	$filename = $ref_fiche_controle . '_CTL_CTR.png';
-	if (isset($FILES['photo_compteur'])) {
 
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($FILES['photo_compteur']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
+	// Multi-image field mapping: field name => suffix
+	$imageFields = array(
+		'photo_compteur' => '_CTL_CTR',
+		'photo_avant_control' => '_CTL_BFR',
+		'photo_apres_control' => '_CTL_AFT',
+		'photo_sceller_un' => '_CTL_SC1',
+		'photo_sceller_deux' => '_CTL_SC2',
+		'photo_signature_client' => '_CTL_SGN'
+	);
 
-			// $url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-			// echo $url;
+	foreach ($imageFields as $fieldName => $suffix) {
+		$uploadedCount = 0;
+
+		if (isset($FILES[$fieldName]) && is_array($FILES[$fieldName]['name'])) {
+			// Multi-image mode: process each uploaded file
+			$count = count($FILES[$fieldName]['name']);
+			for ($i = 0; $i < $count; $i++) {
+				if (!empty($FILES[$fieldName]['name'][$i]) && $FILES[$fieldName]['error'][$i] === UPLOAD_ERR_OK) {
+					if ($uploadedCount === 0) {
+						$filename = $ref_fiche_controle . $suffix . '.png';
+					} else {
+						$filename = $ref_fiche_controle . $suffix . '_' . ($uploadedCount + 1) . '.png';
+					}
+					$source_image = 'pictures_temp/' . $filename;
+					$image_destination = 'pictures/' . $filename;
+					if (move_uploaded_file($FILES[$fieldName]['tmp_name'][$i], $source_image)) {
+						Utils::compress2($source_image, $image_destination, 50);
+						unlink($source_image);
+					}
+					$uploadedCount++;
+				}
 		}
-	}
-
-
-	$filename = $ref_fiche_controle . '_CTL_BFR.png';
-	if (isset($FILES['photo_avant_control'])) {
-
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($FILES['photo_avant_control']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
+		} elseif (isset($FILES[$fieldName]) && !is_array($FILES[$fieldName]['name'])) {
+			// Single image mode (backward compatible)
+			$filename = $ref_fiche_controle . $suffix . '.png';
+			if (!empty($FILES[$fieldName]['name']) && $FILES[$fieldName]['error'] === UPLOAD_ERR_OK) {
+				$source_image = 'pictures_temp/' . $filename;
+				$image_destination = 'pictures/' . $filename;
+				if (move_uploaded_file($FILES[$fieldName]['tmp_name'], $source_image)) {
+					Utils::compress2($source_image, $image_destination, 50);
+					unlink($source_image);
+				}
+				$uploadedCount = 1;
+			}
 		}
-	}
 
-	$filename = $ref_fiche_controle . '_CTL_AFT.png';
-	if (isset($FILES['photo_apres_control'])) {
-
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($FILES['photo_apres_control']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-	$filename = $ref_fiche_controle . '_CTL_SC1.png';
-	if (isset($FILES['photo_sceller_un'])) {
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($FILES['photo_sceller_un']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			// $url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-	$filename = $ref_fiche_controle . '_CTL_SC2.png';
-	if (isset($FILES['photo_sceller_deux'])) {
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($FILES['photo_sceller_deux']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-	$filename = $ref_fiche_controle . '_CTL_SGN.png';
-	if (isset($FILES['photo_signature_client'])) {
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($FILES['photo_signature_client']['tmp_name'], $source_image)) {
-
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
+		// Clean up old images beyond the uploaded count
+		// e.g. if uploadedCount=2, clean _3, _4. If uploadedCount=0, clean all.
+		for ($j = $uploadedCount; $j < 4; $j++) {
+			if ($j === 0) {
+				$oldFile = 'pictures/' . $ref_fiche_controle . $suffix . '.png';
+			} else {
+				$oldFile = 'pictures/' . $ref_fiche_controle . $suffix . '_' . ($j + 1) . '.png';
+			}
+			if (file_exists($oldFile)) {
+				unlink($oldFile);
+			}
 		}
 	}
 }
+function getMultiImageHtml($ref, $suffix, $label, $maxImages = 4)
+{
+	// Rotations and offsets matching the stacked photo-pile style
+	$rotations = array(-4, 3, -2, 2.5);
+	$offsetsX  = array(0, 8, -4, 6);
+	$offsetsY  = array(0, -3, 4, -2);
+
+	$html = '<div class="form-group"><label>' . $label . '</label>';
+	$html .= '<div style="position:relative;width:100%;min-height:220px;padding:12px 12px 12px 4px;">';
+	$count = 0;
+	$imgIndex = 0;
+	for ($i = 1; $i <= $maxImages; $i++) {
+		if ($i === 1) {
+			$imgPath = 'pictures/' . $ref . $suffix . '.png';
+		} else {
+			$imgPath = 'pictures/' . $ref . $suffix . '_' . $i . '.png';
+		}
+		if (file_exists($imgPath) && filesize($imgPath) > 0) {
+			$zIndex = $imgIndex + 1;
+			$rot = $rotations[$imgIndex % 4];
+			$tx = $offsetsX[$imgIndex % 4];
+			$ty = $offsetsY[$imgIndex % 4];
+			$html .= '<div style="position:absolute;left:0;top:0;width:170px;border:3px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:#fff;z-index:' . $zIndex . ';transform:rotate(' . $rot . 'deg) translate(' . $tx . 'px,' . $ty . 'px);">
+';
+			$html .= '<img style="height:180px;width:100%;object-fit:cover;display:block;" src="' . $imgPath . '"></div>';
+			$count++;
+			$imgIndex++;
+		}
+	}
+	if ($count === 0) {
+		// Fallback: show original single image for backward compatibility
+		$imgPath = 'pictures/' . $ref . $suffix . '.png';
+		$html .= '<div style="position:absolute;left:0;top:0;width:170px;border:3px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:#fff;z-index:1;">
+';
+		$html .= '<img style="height:180px;width:100%;object-fit:cover;display:block;" src="' . $imgPath . '"></div>';
+	}
+	$html .= '</div></div>';
+	return $html;
+}
+
 function GetServerDateOrTime($p = "D")
 {
 	$retour = "";

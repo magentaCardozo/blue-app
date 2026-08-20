@@ -205,6 +205,122 @@ $utilisateur->readOne();
 			color: #c0c5ca;
 			opacity: 1
 		}
+
+		/* Multi-image stacked photo-pile styles */
+		.multi-image-container {
+			position: relative;
+			width: 100%;
+		}
+		.multi-image-slots {
+			position: relative;
+			width: 100%;
+			min-height: 190px;
+			padding: 12px 12px 12px 4px;
+		}
+		.multi-image-slots .image-slot {
+			position: absolute;
+			left: 0;
+			top: 0;
+			width: 170px;
+			border: 3px solid #fff;
+			border-radius: 4px;
+			overflow: hidden;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+			background: #fff;
+			cursor: pointer;
+			transition: transform 0.25s ease, box-shadow 0.25s ease;
+		}
+		/* Stack order with alternating rotations — bottom to top */
+		.multi-image-slots .image-slot:nth-child(1) {
+			z-index: 1;
+			transform: rotate(-4deg) translate(0px, 0px);
+		}
+		.multi-image-slots .image-slot:nth-child(2) {
+			z-index: 2;
+			transform: rotate(3deg) translate(8px, -3px);
+		}
+		.multi-image-slots .image-slot:nth-child(3) {
+			z-index: 3;
+			transform: rotate(-2deg) translate(-4px, 4px);
+		}
+		.multi-image-slots .image-slot:nth-child(4) {
+			z-index: 4;
+			transform: rotate(2.5deg) translate(6px, -2px);
+		}
+		/* Single image: no rotation or offset */
+		.multi-image-slots .image-slot:only-child {
+			transform: rotate(0deg) translate(0, 0);
+		}
+		/* Hover brings card to front with gentle lift */
+		.multi-image-slots .image-slot:hover {
+			z-index: 10 !important;
+			box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+			transform: rotate(0deg) scale(1.03);
+		}
+		.multi-image-slots .image-slot img {
+			height: 150px;
+			width: 100%;
+			object-fit: cover;
+			display: block;
+		}
+		.multi-image-slots .image-slot .btn-remove-slot {
+			position: absolute;
+			top: 4px;
+			right: 4px;
+			width: 22px;
+			height: 22px;
+			border-radius: 50%;
+			background: rgba(220,53,69,0.9);
+			color: #fff;
+			border: none;
+			font-size: 14px;
+			line-height: 20px;
+			text-align: center;
+			padding: 0;
+			cursor: pointer;
+			z-index: 3;
+			opacity: 0;
+			transition: opacity 0.2s ease;
+		}
+		.multi-image-slots .image-slot:hover .btn-remove-slot {
+			opacity: 1;
+		}
+		.multi-image-slots .image-slot .btn-remove-slot:hover {
+			background: #dc3545;
+		}
+		.multi-image-slots .image-slot .image-slot-actions {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			background: rgba(0,0,0,0.55);
+			display: flex;
+			justify-content: center;
+			gap: 6px;
+			padding: 5px 0;
+			z-index: 2;
+			opacity: 0;
+			transition: opacity 0.2s ease;
+		}
+		.multi-image-slots .image-slot:hover .image-slot-actions {
+			opacity: 1;
+		}
+		.multi-image-slots .image-slot .image-slot-actions label,
+		.multi-image-slots .image-slot .image-slot-actions a {
+			color: #fff;
+			font-size: 12px;
+			cursor: pointer;
+			margin: 0 4px;
+		}
+		.multi-image-slots .image-slot .image-slot-actions label:hover,
+		.multi-image-slots .image-slot .image-slot-actions a:hover {
+			color: #ffc107;
+		}
+		.btn-add-image {
+			margin-top: 8px;
+			font-size: 12px;
+			padding: 4px 10px;
+		}
 	</style>
 	<link href="assets/css/materialdesignicons.min.css" rel="stylesheet">
 	<link href="assets/css/select2.css" rel="stylesheet">
@@ -666,112 +782,77 @@ $utilisateur->readOne();
 
 									<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12">
 										<div class="card">
-											<div class="card-body">
-												<div class="form-group">
-													<label>PHOTO COMPTEUR</label>
-													<?php if (Utils::IsWebView($_SERVER)) {  ?>
-
-														<div class="image-upload">
-															<label for="file-input">
-																<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-															</label>
-															<input id="file-input" type="file" onchange="previewFile(this,'photo_compteur');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-														</div>
-													<?php } else {
-													?>
-
-														<a class="btn btn-outline-light float-right" id="btn_capture_control">Capturer photo</a>
-														<?php if ($utilisateur->access_au_module_deux == '1') {			?>
-															<div class="image-upload">
-																<label for="file-input">
-																	<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																</label>
-																<input id="file-input" type="file" onchange="previewFile(this,'photo_compteur');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
+											<div class="card-body">													<div class="form-group">
+														<label>PHOTO COMPTEUR</label>
+														<div class="multi-image-container" id="container_photo_compteur">
+															<div class="multi-image-slots">
+																<div class="image-slot" data-index="0">
+																	<img style="height:150px;" class="preview-img" id="photo_compteur_0" />
+																	<button type="button" class="btn-remove-slot" onclick="removeImageSlot('photo_compteur', 0)" title="Supprimer">&times;</button>
+																	<div class="image-slot-actions">
+																		<a class="btn-capture-slot" data-field="photo_compteur" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+																		<label for="file-input_photo_compteur_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+																		<input id="file-input_photo_compteur_0" type="file" onchange="previewFile(this,'photo_compteur_0');" style="display:none;" accept="image/*" />
+																	</div>
+																</div>
 															</div>
-
-													<?php  }
-													} ?>
-													<div class="input-group" style="width: 100%;">
-														<img style="height:300px;" class="form-control pull-right" id="photo_compteur" />
+															<button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_compteur" onclick="addImageSlot('photo_compteur')">
+																<i class="fas fa-plus"></i> Ajouter une image
+															</button>
+														</div>
 													</div>
-												</div>
 											</div>
 										</div>
 									</div>
 									<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_avant_ctl">
 										<div class="card">
-											<div class="card-body">
-												<div class="form-group">
-													<label>PHOTO AVANT CONTROLE</label>
+											<div class="card-body">													<div class="form-group">
+														<label>PHOTO AVANT CONTROLE</label>
 
 
 
 
-													<?php if (Utils::IsWebView($_SERVER)) { ?>
-														<div class="image-upload">
-															<label for="file-input_avant_control">
-																<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-															</label>
-															<input id="file-input_avant_control" type="file" onchange="previewFile(this,'photo_avant_control');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-														</div>
-													<?php } else { ?>
-														<a class="btn btn-outline-light float-right" id="btn_capture_avant_control">Capturer photo</a>
-
-														<?php
-
-														if ($utilisateur->access_au_module_deux == '1') {		?>
-															<div class="image-upload">
-																<label for="file-input_avant_control">
-																	<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																</label>
-																<input id="file-input_avant_control" type="file" onchange="previewFile(this,'photo_avant_control');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
+														<div class="multi-image-container" id="container_photo_avant_control">
+															<div class="multi-image-slots">
+																<div class="image-slot" data-index="0">
+																	<img style="height:150px;" class="preview-img" id="photo_avant_control_0" />
+																	<button type="button" class="btn-remove-slot" onclick="removeImageSlot('photo_avant_control', 0)" title="Supprimer">&times;</button>
+																	<div class="image-slot-actions">
+																		<a class="btn-capture-slot" data-field="photo_avant_control" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+																		<label for="file-input_photo_avant_control_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+																		<input id="file-input_photo_avant_control_0" type="file" onchange="previewFile(this,'photo_avant_control_0');" style="display:none;" accept="image/*" />
+																	</div>
+																</div>
 															</div>
-
-													<?php }
-													} ?>
-
-
-
-													<div class="input-group" style="width: 100%;">
-														<img style="height:300px;" class="form-control pull-right" id="photo_avant_control" />
+															<button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_avant_control" onclick="addImageSlot('photo_avant_control')">
+																<i class="fas fa-plus"></i> Ajouter une image
+															</button>
+														</div>
 													</div>
-												</div>
 											</div>
 										</div>
 									</div>
 									<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_after_ctl">
 										<div class="card">
-											<div class="card-body">
-												<div class="form-group">
-													<label>PHOTO APRES CONTROLE</label>
-													<?php if (Utils::IsWebView($_SERVER)) { ?><div class="image-upload">
-															<label for="file-input_apres_control">
-																<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-															</label>
-															<input id="file-input_apres_control" type="file" onchange="previewFile(this,'photo_apres_control');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-														</div>
-
-													<?php } else { ?>
-
-														<a class="btn btn-outline-light float-right" id="btn_capture_apres_control">Capturer photo</a>
-														<?php
-
-														if ($utilisateur->access_au_module_deux == '1') {		?>
-															<div class="image-upload">
-																<label for="file-input_apres_control">
-																	<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																</label>
-																<input id="file-input_apres_control" type="file" onchange="previewFile(this,'photo_apres_control');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
+											<div class="card-body">													<div class="form-group">
+														<label>PHOTO APRES CONTROLE</label>
+														<div class="multi-image-container" id="container_photo_apres_control">
+															<div class="multi-image-slots">
+																<div class="image-slot" data-index="0">
+																	<img style="height:150px;" class="preview-img" id="photo_apres_control_0" />
+																	<button type="button" class="btn-remove-slot" onclick="removeImageSlot('photo_apres_control', 0)" title="Supprimer">&times;</button>
+																	<div class="image-slot-actions">
+																		<a class="btn-capture-slot" data-field="photo_apres_control" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+																		<label for="file-input_photo_apres_control_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+																		<input id="file-input_photo_apres_control_0" type="file" onchange="previewFile(this,'photo_apres_control_0');" style="display:none;" accept="image/*" />
+																	</div>
+																</div>
 															</div>
-
-													<?php }
-													} ?>
-
-
-													<div class="input-group" style="width: 100%;">
-														<img style="height:300px;" class="form-control pull-right" id="photo_apres_control" />
+															<button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_apres_control" onclick="addImageSlot('photo_apres_control')">
+																<i class="fas fa-plus"></i> Ajouter une image
+															</button>
+														</div>
 													</div>
-												</div>
 											</div>
 										</div>
 									</div>
@@ -779,75 +860,50 @@ $utilisateur->readOne();
 
 									<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_sceller_un">
 										<div class="card">
-											<div class="card-body">
-												<div class="form-group">
-													<label>PHOTO SCELLE 1</label>
-													<?php if (Utils::IsWebView($_SERVER)) {  ?>
-														<div class="image-upload">
-															<label for="file-input_sceller_un">
-																<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-															</label>
-															<input id="file-input_sceller_un" type="file" onchange="previewFile(this,'photo_sceller_un');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-														</div>
-													<?php } else { ?>
-														<a class="btn btn-outline-light float-right" id="btn_capture_sceller_un">Capturer photo</a>
-
-														<?php
-														if ($utilisateur->access_au_module_deux == '1') {	 ?>
-															<div class="image-upload">
-																<label for="file-input_sceller_un">
-																	<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																</label>
-																<input id="file-input_sceller_un" type="file" onchange="previewFile(this,'photo_sceller_un');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
+											<div class="card-body">													<div class="form-group">
+														<label>PHOTO SCELLE 1</label>
+														<div class="multi-image-container" id="container_photo_sceller_un">
+															<div class="multi-image-slots">
+																<div class="image-slot" data-index="0">
+																	<img style="height:150px;" class="preview-img" id="photo_sceller_un_0" />
+																	<button type="button" class="btn-remove-slot" onclick="removeImageSlot('photo_sceller_un', 0)" title="Supprimer">&times;</button>
+																	<div class="image-slot-actions">
+																		<a class="btn-capture-slot" data-field="photo_sceller_un" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+																		<label for="file-input_photo_sceller_un_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+																		<input id="file-input_photo_sceller_un_0" type="file" onchange="previewFile(this,'photo_sceller_un_0');" style="display:none;" accept="image/*" />
+																	</div>
+																</div>
 															</div>
-
-													<?php }
-													} ?>
-
-
-													<div class="input-group" style="width: 100%;">
-														<img style="height:300px;" class="form-control pull-right" id="photo_sceller_un" />
+															<button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_sceller_un" onclick="addImageSlot('photo_sceller_un')">
+																<i class="fas fa-plus"></i> Ajouter une image
+															</button>
+														</div>
 													</div>
-												</div>
 											</div>
 										</div>
 									</div>
 
 									<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_scelle_deux">
 										<div class="card">
-											<div class="card-body">
-												<div class="form-group">
-													<label>PHOTO SCELLE 2</label>
-
-
-
-													<?php if (Utils::IsWebView($_SERVER)) { ?>
-														<div class="image-upload">
-															<label for="file-input_sceller_deux">
-																<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-															</label>
-															<input id="file-input_sceller_deux" type="file" onchange="previewFile(this,'photo_sceller_deux');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-														</div>
-													<?php } else { ?>
-
-														<a class="btn btn-outline-light float-right" id="btn_capture_sceller_deux">Capturer photo</a>
-														<?php
-														if ($utilisateur->access_au_module_deux == '1') {	?>
-															<div class="image-upload">
-																<label for="file-input_sceller_deux">
-																	<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																</label>
-																<input id="file-input_sceller_deux" type="file" onchange="previewFile(this,'photo_sceller_deux');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
+											<div class="card-body">													<div class="form-group">
+														<label>PHOTO SCELLE 2</label>
+														<div class="multi-image-container" id="container_photo_sceller_deux">
+															<div class="multi-image-slots">
+																<div class="image-slot" data-index="0">
+																	<img style="height:150px;" class="preview-img" id="photo_sceller_deux_0" />
+																	<button type="button" class="btn-remove-slot" onclick="removeImageSlot('photo_sceller_deux', 0)" title="Supprimer">&times;</button>
+																	<div class="image-slot-actions">
+																		<a class="btn-capture-slot" data-field="photo_sceller_deux" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+																		<label for="file-input_photo_sceller_deux_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+																		<input id="file-input_photo_sceller_deux_0" type="file" onchange="previewFile(this,'photo_sceller_deux_0');" style="display:none;" accept="image/*" />
+																	</div>
+																</div>
 															</div>
-
-													<?php }
-													} ?>
-
-
-													<div class="input-group" style="width: 100%;">
-														<img style="height:300px;" class="form-control pull-right" id="photo_sceller_deux" />
+															<button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_sceller_deux" onclick="addImageSlot('photo_sceller_deux')">
+																<i class="fas fa-plus"></i> Ajouter une image
+															</button>
+														</div>
 													</div>
-												</div>
 											</div>
 										</div>
 									</div>
@@ -1200,32 +1256,22 @@ $utilisateur->readOne();
 													</div>
 													<div class="card">
 														<div class="card-body">
-															<div class="form-group">
-																<label>PHOTO SIGNATURE CLIENT</label>
-																<?php if (Utils::IsWebView($_SERVER)) {  ?>
-																	<div class="image-upload">
-																		<label for="file-input_signature_client">
-																			<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																		</label>
-																		<input id="file-input_signature_client" type="file" onchange="previewFile(this,'photo_signature_client');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-																	</div>
-																<?php } else { ?>
-																	<a class="btn btn-outline-light float-right" id="btn_capture_signature_client">Capturer photo</a>
-
-
-																	<?php
-																	if ($utilisateur->access_au_module_deux == '1') {		?>
-																		<div class="image-upload">
-																			<label for="file-input_signature_client">
-																				<img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-																			</label>
-																			<input id="file-input_signature_client" type="file" onchange="previewFile(this,'photo_signature_client');" style="display: none;" accept="image/*;capture=camera" capture="camera" />
+															<div class="form-group">																<label>PHOTO SIGNATURE CLIENT</label>
+																<div class="multi-image-container" id="container_photo_signature_client">
+																	<div class="multi-image-slots">
+																		<div class="image-slot" data-index="0">
+																			<img style="height:150px;" class="preview-img" id="photo_signature_client_0" />
+																			<button type="button" class="btn-remove-slot" onclick="removeImageSlot('photo_signature_client', 0)" title="Supprimer">&times;</button>
+																			<div class="image-slot-actions">
+																				<a class="btn-capture-slot" data-field="photo_signature_client" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+																				<label for="file-input_photo_signature_client_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+																				<input id="file-input_photo_signature_client_0" type="file" onchange="previewFile(this,'photo_signature_client_0');" style="display:none;" accept="image/*" />
+																			</div>
 																		</div>
-
-																<?php }
-																} ?>
-																<div class="input-group" style="width: 100%;">
-																	<img style="height:300px;" class="form-control pull-right" id="photo_signature_client" />
+																	</div>
+																	<button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_signature_client" onclick="addImageSlot('photo_signature_client')">
+																		<i class="fas fa-plus"></i> Ajouter une image
+																	</button>
 																</div>
 															</div>
 														</div>
@@ -1712,6 +1758,73 @@ $utilisateur->readOne();
 				}
 
 				reader.readAsDataURL(input.files[0]);
+			}
+		}
+
+		/* ===== Multi-image management ===== */
+		var imageSlotCounts = {
+			'photo_compteur': 1,
+			'photo_avant_control': 1,
+			'photo_apres_control': 1,
+			'photo_sceller_un': 1,
+			'photo_sceller_deux': 1,
+			'photo_signature_client': 1
+		};
+		var maxImagesPerField = 4;
+
+		function addImageSlot(fieldName) {
+			if (imageSlotCounts[fieldName] >= maxImagesPerField) {
+				swal("Information", "Maximum 4 images par champ", "warning");
+				return;
+			}
+			var index = imageSlotCounts[fieldName];
+			var slotHtml = '<div class="image-slot" data-index="' + index + '">' +
+				'<img style="height:150px;" class="preview-img" id="' + fieldName + '_' + index + '" />' +
+				'<button type="button" class="btn-remove-slot" onclick="removeImageSlot(\'' + fieldName + '\', ' + index + ')" title="Supprimer">&times;</button>' +
+				'<div class="image-slot-actions">' +
+				'<a class="btn-capture-slot" data-field="' + fieldName + '" data-index="' + index + '" title="Capturer"><i class="fas fa-camera"></i></a>' +
+				'<label for="file-input_' + fieldName + '_' + index + '" title="Choisir fichier"><i class="fas fa-upload"></i></label>' +
+				'<input id="file-input_' + fieldName + '_' + index + '" type="file" onchange="previewFile(this,\'' + fieldName + '_' + index + '\');" style="display:none;" accept="image/*" />' +
+				'</div>' +
+				'</div>';
+			$('#container_' + fieldName + ' .multi-image-slots').append(slotHtml);
+			imageSlotCounts[fieldName]++;
+			updateAddButton(fieldName);
+		}
+
+		function removeImageSlot(fieldName, index) {
+			$('#container_' + fieldName + ' .image-slot[data-index="' + index + '"]').remove();
+			imageSlotCounts[fieldName]--;
+			updateAddButton(fieldName);
+		}
+
+		function updateAddButton(fieldName) {
+			if (imageSlotCounts[fieldName] >= maxImagesPerField) {
+				$('#btn_add_' + fieldName).hide();
+			} else {
+				$('#btn_add_' + fieldName).show();
+			}
+		}
+
+		function resetImageSlots(fieldName) {
+			var container = $('#container_' + fieldName + ' .multi-image-slots');
+			container.find('.image-slot').each(function(i) {
+				if (i === 0) {
+					$(this).find('img').prop('src', '');
+				} else {
+					$(this).remove();
+				}
+			});
+			imageSlotCounts[fieldName] = 1;
+			updateAddButton(fieldName);
+			// Reset the first slot's index
+			container.find('.image-slot:first').attr('data-index', '0');
+		}
+
+		function resetAllImageSlots() {
+			var fields = ['photo_compteur', 'photo_avant_control', 'photo_apres_control', 'photo_sceller_un', 'photo_sceller_deux', 'photo_signature_client'];
+			for (var i = 0; i < fields.length; i++) {
+				resetImageSlots(fields[i]);
 			}
 		}
 
@@ -2368,49 +2481,13 @@ $utilisateur->readOne();
 
 			});
 
-			$("#btn_capture_control").click(function(e) {
+			// Multi-image camera capture delegate
+			jQuery(document).delegate('.btn-capture-slot', 'click', function(e) {
 				e.preventDefault();
+				var field = $(this).data('field');
+				var index = $(this).data('index');
 				webcam.start();
-				$("#bloc_destination").val('photo_compteur');
-				//  Webcam.attach('#my_camera_control');
-				$("#camera_shooter_control").show();
-			});
-
-			$("#btn_capture_apres_control").click(function(e) {
-				e.preventDefault();
-				webcam.start();
-				$("#bloc_destination").val('photo_apres_control');
-				//  Webcam.attach('#my_camera_install');
-				$("#camera_shooter_control").show();
-			});
-
-			$("#btn_capture_avant_control").click(function(e) {
-				e.preventDefault();
-				webcam.start();
-				$("#bloc_destination").val('photo_avant_control');
-				//  Webcam.attach('#my_camera_install');
-				$("#camera_shooter_control").show();
-			});
-			$("#btn_capture_sceller_un").click(function(e) {
-				e.preventDefault();
-				webcam.start();
-				$("#bloc_destination").val('photo_sceller_un');
-				//  Webcam.attach('#my_camera_install');
-				$("#camera_shooter_control").show();
-			});
-
-			$("#btn_capture_sceller_deux").click(function(e) {
-				e.preventDefault();
-				webcam.start();
-				$("#bloc_destination").val('photo_sceller_deux');
-				//  Webcam.attach('#my_camera_install');
-				$("#camera_shooter_control").show();
-			});
-			$("#btn_capture_signature_client").click(function(e) {
-				e.preventDefault();
-				webcam.start();
-				$("#bloc_destination").val('photo_signature_client');
-				//  Webcam.attach('#my_camera_install');
+				$("#bloc_destination").val(field + '_' + index);
 				$("#camera_shooter_control").show();
 			});
 
@@ -2804,21 +2881,22 @@ $utilisateur->readOne();
 				}
 			}
 
-			function ClearForm() {
-				load_chief = false;
-				//$("#btn_save_control").show();
-				$("#statut_control").prop('disabled', false);
-				$("#sceller_identique").prop('disabled', false);
-				$("#view_control").val("");
-				// $("#dernier_sceller_compteur").val("");
-				// $("#dernier_sceller_coffret").val("");
-				$('#mainForm_control').find('input[type=text],input[type=text], textarea').val('');
-				$('#mainForm_control').find('input[type=checkbox]').prop('checked', false);
-				$('#mainForm_control').find('select, select1').val('').change();
-				$("#photo_pa_avant").attr('src', 'pictures/');
-				$("#photo_compteur").attr('src', 'pictures/');
-				load_chief = true;
-			}
+		function ClearForm() {
+			load_chief = false;
+			//$("#btn_save_control").show();
+			$("#statut_control").prop('disabled', false);
+			$("#sceller_identique").prop('disabled', false);
+			$("#view_control").val("");
+			// $("#dernier_sceller_compteur").val("");
+			// $("#dernier_sceller_coffret").val("");
+			$('#mainForm_control').find('input[type=text],input[type=text], textarea').val('');
+			$('#mainForm_control').find('input[type=checkbox]').prop('checked', false);
+			$('#mainForm_control').find('select, select1').val('').change();
+			$("#photo_pa_avant").attr('src', 'pictures/');
+			// Reset all multi-image slots
+			resetAllImageSlots();
+			load_chief = true;
+		}
 
 
 			$('#btn_save_control').click(function() {
@@ -2860,68 +2938,25 @@ $utilisateur->readOne();
 				// Create a FormData and append the file with "image" as parameter name
 				var formWData = new FormData(form);
 
-				//Imagery
-				var base64image = document.getElementById("photo_compteur").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					//s=RegExp.$1;else
-					// Split the base64 string in data and contentType
-					var block = base64image.split(";");
-					// Get the content type of the image
-					var contentType = block[0].split(":")[1]; // In this case "image/gif"
-					// get the real base64 content of the file
-					var realData = block[1].split(",")[1]; // In this case "R0lGODlhPQBEAPeoAJosM...."
-
-					// Convert it to a blob to upload
-					var blob = b64toBlob(realData, contentType);
-					formWData.append("photo_compteur", blob);
-
-
-				}
-
-				base64image = document.getElementById("photo_sceller_un").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formWData.append("photo_sceller_un", blob);
-				}
-
-				base64image = document.getElementById("photo_sceller_deux").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formWData.append("photo_sceller_deux", blob);
-				}
-
-
-				base64image = document.getElementById("photo_apres_control").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formWData.append("photo_apres_control", blob);
-				}
-
-				base64image = document.getElementById("photo_avant_control").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formWData.append("photo_avant_control", blob);
-				}
-
-				base64image = document.getElementById("photo_signature_client").src;
-				if (base64image.match(/^data\:image\/(\w+)/)) {
-					var block = base64image.split(";");
-					var contentType = block[0].split(":")[1];
-					var realData = block[1].split(",")[1];
-					var blob = b64toBlob(realData, contentType);
-					formWData.append("photo_signature_client", blob);
+				//Imagery - Multi-image collection
+				var imageFields = ['photo_compteur', 'photo_avant_control', 'photo_apres_control', 'photo_sceller_un', 'photo_sceller_deux', 'photo_signature_client'];
+				for (var fi = 0; fi < imageFields.length; fi++) {
+					var fieldName = imageFields[fi];
+					var slotCount = 0;
+					$('#container_' + fieldName + ' .image-slot').each(function() {
+						var idx = $(this).data('index');
+						var imgId = fieldName + '_' + idx;
+						var imgEl = document.getElementById(imgId);
+						if (imgEl && imgEl.src && imgEl.src.match(/^data\:image\/(\w+)/)) {
+							var block = imgEl.src.split(";");
+							var contentType = block[0].split(":")[1];
+							var realData = block[1].split(",")[1];
+							var blob = b64toBlob(realData, contentType);
+							formWData.append(fieldName + '[]', blob, 'photo_' + Date.now() + '_' + slotCount + '.png');
+							slotCount++;
+						}
+					});
+					formWData.append(fieldName + '_count', slotCount);
 				}
 
 				// formWData.append("observation", $("#observation").val());
@@ -3146,12 +3181,19 @@ $utilisateur->readOne();
 									$("#controleur").val(result.data.controleur).change();
 
 
-									$("#photo_compteur").attr('src', 'pictures/' + result.data.ref_fiche_controle + '_CTL_CTR.png');
-									$("#photo_sceller_un").attr('src', 'pictures/' + result.data.ref_fiche_controle + '_CTL_SC1.png');
-									$("#photo_sceller_deux").attr('src', 'pictures/' + result.data.ref_fiche_controle + '_CTL_SC2.png');
-									$("#photo_avant_control").attr('src', 'pictures/' + result.data.ref_fiche_controle + '_CTL_BFR.png');
-									$("#photo_apres_control").attr('src', 'pictures/' + result.data.ref_fiche_controle + '_CTL_AFT.png');
-									$("#photo_signature_client").attr('src', 'pictures/' + result.data.ref_fiche_controle + '_CTL_SGN.png');
+									// Load multi-images for each field from server-provided data
+									var serverImages = result.images || {};
+									$.each(serverImages, function(field, imgPaths) {
+										resetImageSlots(field);
+										if (imgPaths && imgPaths.length > 0) {
+											for (var i = 0; i < imgPaths.length && i < 4; i++) {
+												if (i > 0) {
+													addImageSlot(field);
+											}
+											$('#' + field + '_' + i).attr('src', imgPaths[i]);
+											}
+										}
+									});
 
 									//identif
 									$("#ref_identific").val(result.data.id_);
