@@ -221,6 +221,23 @@ $utilisateur->readOne();
             top: 0px;
             background: white;
         }
+        /* Multi-image stacked photo-pile styles */
+        .multi-image-container { position: relative; width: 100%; }
+        .multi-image-slots { position: relative; width: 100%; min-height: 190px; padding: 12px 12px 12px 4px; }
+        .multi-image-slots .image-slot { position: absolute; left: 0; top: 0; width: 170px; border: 3px solid #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.25); background: #fff; cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; }
+        .multi-image-slots .image-slot:nth-child(1) { z-index: 1; transform: rotate(-4deg) translate(0px, 0px); }
+        .multi-image-slots .image-slot:nth-child(2) { z-index: 2; transform: rotate(3deg) translate(8px, -3px); }
+        .multi-image-slots .image-slot:nth-child(3) { z-index: 3; transform: rotate(-2deg) translate(-4px, 4px); }
+        .multi-image-slots .image-slot:nth-child(4) { z-index: 4; transform: rotate(2.5deg) translate(6px, -2px); }
+        .multi-image-slots .image-slot:only-child { transform: rotate(0deg) translate(0, 0); }
+        .multi-image-slots .image-slot:hover { z-index: 10 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.35); transform: rotate(0deg) scale(1.03); }
+        .multi-image-slots .image-slot img { height: 150px; width: 100%; object-fit: cover; display: block; }
+        .multi-image-slots .image-slot .btn-remove-slot { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(220,53,69,0.9); color: #fff; border: none; font-size: 14px; line-height: 20px; text-align: center; padding: 0; cursor: pointer; z-index: 3; opacity: 0; transition: opacity 0.2s ease; }
+        .multi-image-slots .image-slot:hover .btn-remove-slot { opacity: 1; }
+        .multi-image-slots .image-slot .image-slot-actions { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.55); display: flex; justify-content: center; gap: 6px; padding: 5px 0; z-index: 2; opacity: 0; transition: opacity 0.2s ease; }
+        .multi-image-slots .image-slot:hover .image-slot-actions { opacity: 1; }
+        .multi-image-slots .image-slot .image-slot-actions label, .multi-image-slots .image-slot .image-slot-actions a { color: #fff; font-size: 12px; cursor: pointer; margin: 0 4px; }
+        .btn-add-image { margin-top: 8px; font-size: 12px; padding: 4px 10px; }
     </style>
     <link href="assets/css/materialdesignicons.min.css" rel="stylesheet">
     <link href="assets/css/select2.css" rel="stylesheet">
@@ -902,38 +919,25 @@ $utilisateur->readOne();
                                             <div class="card">
                                                 <div class="card-header d-flex">
                                                     <h4 class="mb-0">GALERIE PHOTO PA</h4>
-                                                    <div class="dropdown ml-auto">
-
-
-                                                        <?php if (Utils::IsWebView($_SERVER)) { ?>
-                                                            <div class="image-upload">
-                                                                <label for="file-input">
-                                                                    <img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-                                                                </label>
-
-                                                                <input id="file-input" type="file" onchange="previewFile(this);" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-                                                            </div>
-                                                        <?php } else {
-                                                        ?>
-                                                            <a class="btn btn-xs delete-install-record" id="btn_capture"><i class="fas fa-plus"></i></a>
-
-                                                            <div class="image-upload">
-                                                                <label for="file-input">
-                                                                    <img id="previewImg" src="image/camera.jpg" style="width: 25px; height: 25px;" />
-                                                                </label>
-                                                                <!-- Using accept="image/png, image/jpeg" fixes the issue  -->
-                                                                <input id="file-input" type="file" onchange="previewFile(this);" style="display: none;" accept="image/*;capture=camera" capture="camera" />
-                                                            </div>
-                                                    </div>
-                                                <?php
-                                                        }
-                                                ?>
                                                 </div>
                                             </div>
                                             <div class="card-body">
-                                                <div class="row" id="photo_pa_list">
+                                                <div class="multi-image-container" id="container_photo_pa">
+                                                    <div class="multi-image-slots">
+                                                        <div class="image-slot" data-index="0">
+                                                            <img style="height:150px;" class="preview-img" id="photo_pa_0" />
+                                                            <button type="button" class="btn-remove-slot" onclick="identRemoveSlot(0)" title="Supprimer">&times;</button>
+                                                            <div class="image-slot-actions">
+                                                                <a class="btn-capture-slot" data-field="photo_pa" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>
+                                                                <label for="file-input_photo_pa_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>
+                                                                <input id="file-input_photo_pa_0" type="file" onchange="previewFile(this,'photo_pa_0');" style="display:none;" accept="image/*" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary btn-add-image" id="btn_add_photo_pa" onclick="identAddSlot()">
+                                                        <i class="fas fa-plus"></i> Ajouter une image
+                                                    </button>
                                                 </div>
-
                                             </div>
                                         </div>
                                     </div>
@@ -1225,8 +1229,7 @@ $utilisateur->readOne();
 
                 </div>
                 <div class="modal-body text-center">
-
-
+                    <input id="bloc_destination" type="hidden">
                     <div id="my_camera" style="width: 320px; height: 240px;">
                         <div></div><video id="webcam" autoplay style="width: 320px; height: 240px;" width="320" height="240"></video>
                         <canvas id="canvas" class="d-none"></canvas>
@@ -1504,6 +1507,8 @@ $utilisateur->readOne();
     ?>
     <script src="assets/js/select2.min.js"></script>
     <script src="assets/js/mapviewer-script.js"></script>
+    <link href="assets/css/lightgallery.css" rel="stylesheet">
+    <script src="assets/js/lightgallery-all.js"></script>
     <script>
         $(document).ready(function() {
             // $(function () {
@@ -2771,7 +2776,18 @@ $utilisateur->readOne();
                 load_avenue = false;
                 load_commune = false;
                 load_quartier = false;
-                $('#photo_pa_list').html('');
+                // Reset multi-image slots
+                $('#container_photo_pa .multi-image-slots').html(
+                    '<div class="image-slot" data-index="0">' +
+                    '<img style="height:150px;" class="preview-img" id="photo_pa_0" />' +
+                    '<button type="button" class="btn-remove-slot" onclick="identRemoveSlot(0)" title="Supprimer">&times;</button>' +
+                    '<div class="image-slot-actions">' +
+                    '<a class="btn-capture-slot" data-field="photo_pa" data-index="0" title="Capturer"><i class="fas fa-camera"></i></a>' +
+                    '<label for="file-input_photo_pa_0" title="Choisir fichier"><i class="fas fa-upload"></i></label>' +
+                    '<input id="file-input_photo_pa_0" type="file" onchange="previewFile(this,\'' + 'photo_pa_0' + '\');" style="display:none;" accept="image/*" />' +
+                    '</div></div>'
+                );
+                identSlotCount = 1;
                 $("#ville_id").val("").change();
                 $("#commune_id").val("").change();
                 $("#quartier").val("").change();
@@ -2880,24 +2896,17 @@ $utilisateur->readOne();
                 });
                 lst_materiels += otArr.join(",") + ']';
 
-                var lignes = $('#photo_pa_list .photo-item');
-                lignes.each(function(i) {
-                    // x = $(this).children();
-                    //var itArr = [];
-                    var row_id = $(this).attr('bloc-photo-id');
-                    var base64img = document.getElementById("pa_pic_" + row_id).src;
-                    if (base64img.length) {
-                        if (base64img.match(/^data\:image\/(\w+)/)) {
-                            var block_img = base64img.split(";");
-                            var contentype = block_img[0].split(":")[1];
-                            var realDat = block_img[1].split(",")[1];
-
-                            // Convert it to a blob to upload
-                            var blob_ = b64toBlob(realDat, contentype);
-                            formDataToUpload.append("photo_pa_avant[]", blob_);
-                        }
+                // Multi-image slots: collect all photo_pa images
+                for (var si = 0; si < identSlotCount; si++) {
+                    var imgEl = document.getElementById('photo_pa_' + si);
+                    if (imgEl && imgEl.src && imgEl.src.match(/^data\:image\/(\w+)/)) {
+                        var block_img = imgEl.src.split(";");
+                        var contentype = block_img[0].split(":")[1];
+                        var realDat = block_img[1].split(",")[1];
+                        var blob_ = b64toBlob(realDat, contentype);
+                        formDataToUpload.append("photo_pa_avant[]", blob_);
                     }
-                });
+                }
 
                 var client_id = $('#nom_abonne').attr('data_id');
                 var occupant_id = $('#nom_occupant_trouver').attr('data_id');
@@ -3133,17 +3142,8 @@ $utilisateur->readOne();
 
 
                                     $.each(result.photos, function(i, item) {
-                                        $('#photo_pa_list').append('<div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" >' +
-                                            '<div class="card">' +
-                                            '<div class="card-body">' +
-                                            '	<label></label>' +
-                                            '	  ' +
-                                            '<div class="input-group" style="width: 100%;"> ' +
-                                            '	<img style="height:300px;" class="form-control pull-right"  src="pictures/' + item.ref_photo + '.png"> ' +
-                                            '</div> ' +
-                                            '</div>	' +
-                                            '</div> ' +
-                                            '</div>');
+                                        if (i > 0) identAddSlot();
+                                        $('#photo_pa_' + i).attr('src', 'pictures/' + item.ref_photo + '.png');
                                     });
 
 
@@ -3932,28 +3932,44 @@ $utilisateur->readOne();
         <?php //} 
         ?>
         //   Webcam.init(webcamElement, 'user', canvasElement, snapSoundElement);
-        jQuery(document).delegate('a.delete-pa-photo', 'click', function(e) {
+        /* ===== Multi-image management for identification ===== */
+        var identSlotCount = 1;
+        var identMaxImages = 4;
+
+        function identAddSlot() {
+            if (identSlotCount >= identMaxImages) { return; }
+            var idx = identSlotCount;
+            var html = '<div class="image-slot" data-index="' + idx + '">' +
+                '<img style="height:150px;" class="preview-img" id="photo_pa_' + idx + '" />' +
+                '<button type="button" class="btn-remove-slot" onclick="identRemoveSlot(' + idx + ')" title="Supprimer">&times;</button>' +
+                '<div class="image-slot-actions">' +
+                '<a class="btn-capture-slot" data-field="photo_pa" data-index="' + idx + '" title="Capturer"><i class="fas fa-camera"></i></a>' +
+                '<label for="file-input_photo_pa_' + idx + '" title="Choisir fichier"><i class="fas fa-upload"></i></label>' +
+                '<input id="file-input_photo_pa_' + idx + '" type="file" onchange="previewFile(this,\'' + 'photo_pa_' + idx + '\');" style="display:none;" accept="image/*" />' +
+                '</div></div>';
+            $('#container_photo_pa .multi-image-slots').append(html);
+            identSlotCount++;
+        }
+
+        function identRemoveSlot(index) {
+            $('#container_photo_pa .image-slot[data-index="' + index + '"]').remove();
+            identSlotCount--;
+        }
+
+        // Multi-image camera capture delegate
+        jQuery(document).delegate('.btn-capture-slot', 'click', function(e) {
             e.preventDefault();
-            // var itemId = $(this).parents('div.photo-item').attr('bloc-photo-id');
-            $(this).parents('div.photo-item').remove();
-            // $('div.photo-item[bloc-photo-id="' + itemId + '"]').remove(); 
+            var field = $(this).data('field');
+            var index = $(this).data('index');
+            webcam.start();
+            $("#bloc_destination").val(field + '_' + index);
+            $("#camera_shooter").show();
         });
 
         function take_snapshot() {
-            var t = webcam.snap();
-            var img_id = Date.now();
-            var photo_pa_list = $('#photo_pa_list');
-            photo_pa_list.append('<div class="photo-item col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" bloc-photo-id="' + img_id + '">' +
-                '<div class="card">' +
-                '<div class="card-body">' +
-                '	<label></label>' +
-                '	<a class="btn btn-outline-light float-right delete-pa-photo">supprimer photo</a>  ' +
-                '<div class="input-group" style="width: 100%;"> ' +
-                '	<img style="height:300px;" class="form-control pull-right" name="photo_pa_avant[]" src="' + t + '" id="pa_pic_' + img_id + '"> ' +
-                '</div> ' +
-                '</div>	' +
-                '</div> ' +
-                '</div>');
+            webcam.snap();
+            var bloc_destination = $("#bloc_destination").val();
+            $('#' + bloc_destination).prop("src", canvasElement.toDataURL("image/png"));
             webcam.stop();
             $("#camera_shooter").hide();
         }
