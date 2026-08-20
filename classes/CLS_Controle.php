@@ -896,7 +896,7 @@ class CLS_Controle
 		//$this->refus_access = strip_tags($this->refus_access);
 		$this->observation = strip_tags($this->observation);
 		$this->date_update = date('Y-m-d H:i:s'); //strip_tags($this->date_controle); 
-		$this->photo_compteur = $this->ref_fiche_controle . '_ctr.png';
+		$this->photo_compteur = $this->ref_fiche_controle . '_ctl.png';
 
 		$this->consommation_journaliere = strip_tags($this->consommation_journaliere);
 		$this->date_de_dernier_ticket_rentre = strip_tags($this->date_de_dernier_ticket_rentre);

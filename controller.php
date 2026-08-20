@@ -1326,12 +1326,7 @@ switch ($view) {
 											<div class="font-medium text-primary ">' . $data['data']['index_credit_restant_cpteur_post_paie'] .  '</div>
 										</div> 									
                                 </div>	
-								<div class="form-group">
-									<label>PHOTO COMPTEUR POST-PAIE</label>  <a href="pictures/' . $data['data']['id_install'] . '_INST_POST.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a>
-									<div class="input-group"  style="width: 100%;" > 
-										<img style="height:300px;" class="form-control pull-right" src="pictures/' . $data['data']['id_install'] . '_INST_POST.png" />
-									</div> 								
-								</div>
+								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_POST', 'PHOTO COMPTEUR POST-PAIE') . '
                             
                         </div>
                         </div>
@@ -1363,10 +1358,7 @@ switch ($view) {
 										</div> 
                                 </div>
 								 <div class="form-group" id="bloc_photo_cpteur_defectueux">
-                                    <label>PHOTO COMPTEUR DEFECTUEUX</label>  <a href="pictures/' . $data['data']['id_install'] . '_INST_DFT.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a> 
-                                    <div class="input-group"  style="width: 100%;" > 
-                                        <img style="height:300px;" class="form-control pull-right" src="pictures/' . $data['data']['id_install'] . '_INST_DFT.png"/>
-                                    </div>                
+								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_DFT', 'PHOTO COMPTEUR DEFECTUEUX') . '
                                 </div>
 								</div>
                             </div>
@@ -1462,12 +1454,7 @@ switch ($view) {
 						       
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_nouveau_cpteur">
                             <div class="card">
-								<div class="card-body">
-								 <div class="form-group">
-                                    <label>PHOTO NOUVEAU COMPTEUR  </label>  <a href="pictures/' . $data['data']['id_install'] . '_INST_CTR.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a>
-                                    <div class="input-group"  style="width: 100%;" > 
-                                        <img style="height:300px;" class="form-control pull-right" src="pictures/' . $data['data']['id_install'] . '_INST_CTR.png" />
-                                    </div>                
+								<div class="card-body"> 								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_CTR', 'PHOTO NOUVEAU COMPTEUR') . '
                                 </div>
                                 </div>
                                 </div>
@@ -1475,12 +1462,7 @@ switch ($view) {
 						  
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_avant_install">
                             <div class="card">
-								<div class="card-body">		
-								 <div class="form-group">
-                                    <label>PHOTO AVANT INSTALLATION</label>   <a href="pictures/' . $data['data']['id_install'] . '_INST_BFR.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a>
-                                    <div class="input-group"  style="width: 100%;" > 
-                                        <img style="height:300px;" class="form-control pull-right" src="pictures/' . $data['data']['id_install'] . '_INST_BFR.png" />
-                                    </div>                
+								<div class="card-body"> 								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_BFR', 'PHOTO AVANT INSTALLATION') . '
                                 </div>
                                 </div>
                                 </div>
@@ -1488,12 +1470,7 @@ switch ($view) {
 					  
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_apres_install">
                             <div class="card">
-								<div class="card-body">			
-								 <div class="form-group">
-                                    <label>PHOTO APRES INSTALLATION</label>  <a href="pictures/' . $data['data']['id_install'] . '_INST_AFT.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a>
-                                    <div class="input-group"  style="width: 100%;" > 
-                                        <img style="height:300px;" class="form-control pull-right" src="pictures/' . $data['data']['id_install'] . '_INST_AFT.png" />
-                                    </div>                
+								<div class="card-body"> 								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_AFT', 'PHOTO APRES INSTALLATION') . '
                                 </div>
                                 </div>
                                 </div>
@@ -1501,12 +1478,7 @@ switch ($view) {
 					  
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_sceller_un">
                             <div class="card">
-								<div class="card-body">			
-								 <div class="form-group">
-                                    <label>PHOTO SCELLE 1</label>  <a href="pictures/' . $data['data']['id_install'] . '_INST_SC1.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a>
-                                    <div class="input-group"  style="width: 100%;" > 
-                                        <img style="height:300px;" class="form-control pull-right"  src="pictures/' . $data['data']['id_install'] . '_INST_SC1.png" />
-                                    </div>                
+								<div class="card-body"> 								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_SC1', 'PHOTO SCELLE 1') . '
                                 </div>
                                 </div>
                                 </div>
@@ -1514,12 +1486,7 @@ switch ($view) {
 					  
                        <div class="col-xl-6 col-lg-6 col-md-12 col-sm-12 col-12" id="bloc_photo_scelle_deux">
                             <div class="card">
-								<div class="card-body">			
-								 <div class="form-group" >
-                                    <label>PHOTO SCELLE 2</label>  <a href="pictures/' . $data['data']['id_install'] . '_INST_SC2.png" class="btn btn-primary" download> <i class="fa fa-download"></i> </a>
-                                    <div class="input-group"  style="width: 100%;" > 
-                                        <img style="height:300px;" class="form-control pull-right"  src="pictures/' . $data['data']['id_install'] . '_INST_SC2.png"/>
-                                    </div>                
+								<div class="card-body"> 								 ' . getMultiImageHtml($data['data']['id_install'], '_INST_SC2', 'PHOTO SCELLE 2') . '
                                 </div>
 								</div>
                             </div>
@@ -6826,19 +6793,25 @@ DroitsNotGranted();
 		// Scan for existing multi-images and include in response
 		$ref = $result_array['data']['ref_fiche_controle'];
 		$imgFields = array(
-			'photo_compteur' => '_CTL_CTR',
+			'photo_compteur' => '_ctl',
 			'photo_avant_control' => '_CTL_BFR',
 			'photo_apres_control' => '_CTL_AFT',
 			'photo_sceller_un' => '_CTL_SC1',
 			'photo_sceller_deux' => '_CTL_SC2',
 			'photo_signature_client' => '_CTL_SGN'
 		);
+		$legacySuffixes = array('_ctl' => '_CTL_CTR', '_CTL_CTR' => '_ctl');
 		$result_array['images'] = array();
 		foreach ($imgFields as $fieldName => $suffix) {
 			$result_array['images'][$fieldName] = array();
+			$fb = isset($legacySuffixes[$suffix]) ? $legacySuffixes[$suffix] : '';
 			for ($n = 1; $n <= 4; $n++) {
 				if ($n === 1) {
 					$imgPath = 'pictures/' . $ref . $suffix . '.png';
+					if ((!file_exists($imgPath) || filesize($imgPath) <= 0) && $fb) {
+						$fbPath = 'pictures/' . $ref . $fb . '.png';
+						if (file_exists($fbPath) && filesize($fbPath) > 0) $imgPath = $fbPath;
+					}
 				} else {
 					$imgPath = 'pictures/' . $ref . $suffix . '_' . $n . '.png';
 				}
@@ -7866,107 +7839,62 @@ function processRequiredCaptureControl($FILES)
 }
 function processCaptureInstall($FILES, $id_install)
 {
-	$filename = $id_install . '_INST_CTR.png';
-
-
-	$source_image = 'pictures_temp/' . $filename;
-	$image_destination = 'pictures/' . $filename;
-
 	Utils::F_Exist('pictures');
 	Utils::F_Exist('pictures_temp');
 
-	if (isset($_FILES['photo_compteur'])) {
-		if (move_uploaded_file($_FILES['photo_compteur']['tmp_name'], $source_image)) {
+	$imageFields = array(
+		'photo_compteur' => '_INST_CTR',
+		'photo_compteur_post_paie' => '_INST_POST',
+		'photo_avant_install' => '_INST_BFR',
+		'photo_apres_install' => '_INST_AFT',
+		'photo_sceller_un' => '_INST_SC1',
+		'photo_sceller_deux' => '_INST_SC2',
+		'photo_compteur_defectueux' => '_INST_DFT'
+	);
 
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
+	foreach ($imageFields as $fieldName => $suffix) {
+		$uploadedCount = 0;
+
+		if (isset($FILES[$fieldName]) && is_array($FILES[$fieldName]['name'])) {
+			$count = count($FILES[$fieldName]['name']);
+			for ($i = 0; $i < $count; $i++) {
+				if (!empty($FILES[$fieldName]['name'][$i]) && $FILES[$fieldName]['error'][$i] === UPLOAD_ERR_OK) {
+					if ($uploadedCount === 0) {
+						$filename = $id_install . $suffix . '.png';
+					} else {
+						$filename = $id_install . $suffix . '_' . ($uploadedCount + 1) . '.png';
+					}
+					$source_image = 'pictures_temp/' . $filename;
+					$image_destination = 'pictures/' . $filename;
+					if (move_uploaded_file($FILES[$fieldName]['tmp_name'][$i], $source_image)) {
+						Utils::compress2($source_image, $image_destination, 50);
+						unlink($source_image);
+					}
+					$uploadedCount++;
+				}
+			}
+		} elseif (isset($FILES[$fieldName]) && !is_array($FILES[$fieldName]['name'])) {
+			$filename = $id_install . $suffix . '.png';
+			if (!empty($FILES[$fieldName]['name']) && $FILES[$fieldName]['error'] === UPLOAD_ERR_OK) {
+				$source_image = 'pictures_temp/' . $filename;
+				$image_destination = 'pictures/' . $filename;
+				if (move_uploaded_file($FILES[$fieldName]['tmp_name'], $source_image)) {
+					Utils::compress2($source_image, $image_destination, 50);
+					unlink($source_image);
+				}
+				$uploadedCount = 1;
+			}
 		}
-	}
-	$filename = $id_install . '_INST_POST.png';
-	if (isset($_FILES['photo_compteur_post_paie'])) {
 
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-
-
-		if (move_uploaded_file($_FILES['photo_compteur_post_paie']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-
-	$filename = $id_install . '_INST_BFR.png';
-	if (isset($_FILES['photo_avant_install'])) {
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-
-
-		if (move_uploaded_file($_FILES['photo_avant_install']['tmp_name'], $source_image)) {
-
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-	$filename = $id_install . '_INST_AFT.png';
-	if (isset($_FILES['photo_apres_install'])) {
-
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-
-		if (move_uploaded_file($_FILES['photo_apres_install']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			// $url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-	$filename = $id_install . '_INST_SC1.png';
-	if (isset($_FILES['photo_sceller_un'])) {
-
-
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-
-		if (move_uploaded_file($_FILES['photo_sceller_un']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-	$filename = $id_install . '_INST_SC2.png';
-	if (isset($_FILES['photo_sceller_deux'])) {
-
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-
-
-		if (move_uploaded_file($_FILES['photo_sceller_deux']['tmp_name'], $source_image)) {
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
-		}
-	}
-
-
-
-	if (isset($_FILES['photo_compteur_defectueux'])) {
-
-		$filename = $id_install . '_INST_DFT.png';
-		$source_image = 'pictures_temp/' . $filename;
-		$image_destination = 'pictures/' . $filename;
-		if (move_uploaded_file($_FILES['photo_compteur_defectueux']['tmp_name'], $source_image)) {
-
-			Utils::compress2($source_image, $image_destination, 50);
-			unlink($source_image);
-			$url = 'http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . '/pictures/' . $filename;
+		for ($j = $uploadedCount; $j < 4; $j++) {
+			if ($j === 0) {
+				$oldFile = 'pictures/' . $id_install . $suffix . '.png';
+			} else {
+				$oldFile = 'pictures/' . $id_install . $suffix . '_' . ($j + 1) . '.png';
+			}
+			if (file_exists($oldFile)) {
+				unlink($oldFile);
+			}
 		}
 	}
 }
@@ -8040,12 +7968,19 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 }
 function getMultiImageHtml($ref, $suffix, $label, $maxImages = 4)
 {
-	// Rotations and offsets matching the stacked photo-pile style
 	$rotations = array(-4, 3, -2, 2.5);
 	$offsetsX  = array(0, 8, -4, 6);
 	$offsetsY  = array(0, -3, 4, -2);
 
+	$legacyFallbacks = array(
+		'_ctl' => array('_CTL_CTR'),
+		'_CTL_CTR' => array('_ctl'),
+	);
+	$fallbackSuffixes = isset($legacyFallbacks[$suffix]) ? $legacyFallbacks[$suffix] : array();
+
+	$galleryId = 'lg_' . $ref . '_' . preg_replace('/[^a-zA-Z0-9]/', '', $suffix);
 	$html = '<div class="form-group"><label>' . $label . '</label>';
+	$html .= '<div class="multi-image-viewer" id="' . $galleryId . '_wrap" data-gallery-id="' . $galleryId . '">';
 	$html .= '<div style="position:relative;width:100%;min-height:220px;padding:12px 12px 12px 4px;">';
 	$count = 0;
 	$imgIndex = 0;
@@ -8055,26 +7990,47 @@ function getMultiImageHtml($ref, $suffix, $label, $maxImages = 4)
 		} else {
 			$imgPath = 'pictures/' . $ref . $suffix . '_' . $i . '.png';
 		}
+		if ((!file_exists($imgPath) || filesize($imgPath) <= 0) && $i === 1) {
+			foreach ($fallbackSuffixes as $fbSuffix) {
+				$fbPath = 'pictures/' . $ref . $fbSuffix . '.png';
+				if (file_exists($fbPath) && filesize($fbPath) > 0) {
+					$imgPath = $fbPath;
+					break;
+				}
+			}
+		}
 		if (file_exists($imgPath) && filesize($imgPath) > 0) {
 			$zIndex = $imgIndex + 1;
 			$rot = $rotations[$imgIndex % 4];
 			$tx = $offsetsX[$imgIndex % 4];
 			$ty = $offsetsY[$imgIndex % 4];
-			$html .= '<div style="position:absolute;left:0;top:0;width:170px;border:3px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:#fff;z-index:' . $zIndex . ';transform:rotate(' . $rot . 'deg) translate(' . $tx . 'px,' . $ty . 'px);">
+			$html .= '<div style="position:absolute;left:0;top:0;width:170px;border:3px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:#fff;z-index:' . $zIndex . ';transform:rotate(' . $rot . 'deg) translate(' . $tx . 'px,' . $ty . 'px);cursor:pointer;">
 ';
-			$html .= '<img style="height:180px;width:100%;object-fit:cover;display:block;" src="' . $imgPath . '"></div>';
+			$html .= '<a href="' . $imgPath . '" data-src="' . $imgPath . '" class="lg-image-link" style="display:block;">
+';
+			$html .= '<img style="height:180px;width:100%;object-fit:cover;display:block;" src="' . $imgPath . '"></a></div>';
 			$count++;
 			$imgIndex++;
 		}
 	}
 	if ($count === 0) {
-		// Fallback: show original single image for backward compatibility
 		$imgPath = 'pictures/' . $ref . $suffix . '.png';
-		$html .= '<div style="position:absolute;left:0;top:0;width:170px;border:3px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:#fff;z-index:1;">
+		if (!file_exists($imgPath) || filesize($imgPath) <= 0) {
+			foreach ($fallbackSuffixes as $fbSuffix) {
+				$fbPath = 'pictures/' . $ref . $fbSuffix . '.png';
+				if (file_exists($fbPath) && filesize($fbPath) > 0) {
+					$imgPath = $fbPath;
+					break;
+				}
+			}
+		}
+		$html .= '<div style="position:absolute;left:0;top:0;width:170px;border:3px solid #fff;border-radius:4px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:#fff;z-index:1;cursor:pointer;">
 ';
-		$html .= '<img style="height:180px;width:100%;object-fit:cover;display:block;" src="' . $imgPath . '"></div>';
+		$html .= '<a href="' . $imgPath . '" data-src="' . $imgPath . '" class="lg-image-link" style="display:block;">
+';
+		$html .= '<img style="height:180px;width:100%;object-fit:cover;display:block;" src="' . $imgPath . '"></a></div>';
 	}
-	$html .= '</div></div>';
+	$html .= '</div></div></div>';
 	return $html;
 }
 

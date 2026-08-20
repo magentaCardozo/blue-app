@@ -742,18 +742,36 @@ $onlyconsonants = str_replace($vowels, "", "Hello World of PHP");
 
 	public static function compress2($source, $destination, $quality)
 	{
-		$info = getimagesize($source);
+		// Fallback : si GD n'est pas disponible, copier le fichier tel quel
+		if (!function_exists('imagecreatefromjpeg')) {
+			copy($source, $destination);
+			return $destination;
+		}
 
-		if ($info['mime'] == 'image/jpeg')
-			$image = imagecreatefromjpeg($source);
+		$info = @getimagesize($source);
+		if ($info === false || !isset($info['mime'])) {
+			// Impossible de lire l'image, copier tel quel
+			copy($source, $destination);
+			return $destination;
+		}
 
-		elseif ($info['mime'] == 'image/gif')
-			$image = imagecreatefromgif($source);
+		$image = null;
+		if ($info['mime'] == 'image/jpeg') {
+			$image = @imagecreatefromjpeg($source);
+		} elseif ($info['mime'] == 'image/gif') {
+			$image = @imagecreatefromgif($source);
+		} elseif ($info['mime'] == 'image/png') {
+			$image = @imagecreatefrompng($source);
+		}
 
-		elseif ($info['mime'] == 'image/png')
-			$image = imagecreatefrompng($source);
+		if ($image === null) {
+			// Echec de creation GD, copier le fichier source tel quel
+			copy($source, $destination);
+			return $destination;
+		}
 
 		imagejpeg($image, $destination, $quality);
+		imagedestroy($image);
 
 		return $destination;
 	}
