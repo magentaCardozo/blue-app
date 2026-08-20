@@ -3182,7 +3182,7 @@ exit();*/
 				$result .= '  
                                     </div><div class="card-body">
 				<div class="row">
-				<div class="col-sm-3">
+				<div class="col-sm-2">
 						<div class="text-dark">';
 				$result .=  Utils::getDateInstall_Label($row_["statut_installation"]);
 
@@ -3202,20 +3202,33 @@ exit();*/
 				}
 				
 				$result .= '</div>
-					<div class="col-sm-3">
+
+					<div class="col-sm-2">
+						<div class="text-dark">
+							Date fin installation
+						</div>
+						<div class="font-medium text-primary control-date">' . ($row_["date_fin_installation_fr"] ?? '') . '</div>
+					</div>
+					<div class="col-sm-2">
+						<div class="text-dark">
+							Numéro PA
+						</div>
+						<div class="font-medium text-primary control-date">' . ($row_["p_a"] ?? '') . '</div>
+					</div>
+					<div class="col-sm-2">
 						<div class="text-dark">
 							Equipe installation
 						</div>
 						<div class="font-medium text-primary control-organe">' . $organisme->denomination  . '</div>
 					</div>
 					
-					<div class="col-sm-3">
+					<div class="col-sm-2">
 						<div class="text-dark">
 							Installateur
 						</div>
 						<div class="font-medium text-primary control-staff">' . $ctl_rw['nom_complet'] . '</div>
 					</div>
-					<div class="col-sm-3 text-left">
+					<div class="col-sm-2 text-left">
 						<div class="text-dark">
 							Chef équipe
 						</div>
