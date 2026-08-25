@@ -2596,16 +2596,6 @@ body { background: linear-gradient(to left, rgb(86, 171, 47), rgb(168, 224, 99))
 				$("#bloc_destination").val('photo_compteur_defectueux');
 				$("#camera_shooter_install").show();
 			});
-				$("#camera_shooter_install").show();
-			});
-
-			$("#btn_capture_defectueux").click(function(e) {
-				e.preventDefault();
-				webcam.start();
-				$("#bloc_destination").val('photo_compteur_defectueux');
-				//  Webcam.attach('#my_camera_install');
-				$("#camera_shooter_install").show();
-			});
 
 
 
@@ -4122,7 +4112,7 @@ function b64toBlob(b64Data, contentType, sliceSize) {
 		// Configure a few settings and attach camera
 		const web_install_camElement = document.getElementById('webcam_install');
 		const canvasElement_install = document.getElementById('canvas_install');
-		const snapSoundElement_install = document.getElementById('snapSound');
+		const snapSoundElement_install = document.getElementById('snapSound_install');
 
 		const webcam = new Webcam(web_install_camElement, 'user', canvasElement_install, snapSoundElement_install);
 
