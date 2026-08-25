@@ -111,10 +111,34 @@ class CLS_Controle
 	public $dernier_sceller_compteur;
 	public $dernier_sceller_coffret;
 
+	public $approbation_control;
+	public $n_user_approuver;
+	public $date_approbation;
+	public $statut_control;
+	public $commenteur_controle_blue;
 
 	public function __construct($db)
 	{
 		$this->connection = $db;
+	}
+
+	function Approuver()
+	{
+		$query = "UPDATE " . $this->table_name . " SET n_user_approuver=:n_user_approuver, date_approbation=:date_approbation, is_draft_control=:is_draft_control, statut_control=:statut_control, approbation_control=:approbation_control, commenteur_controle_blue=:commenteur_controle_blue WHERE ref_fiche_controle=:ref_fiche_controle";
+		$stmt = $this->connection->prepare($query);
+		$this->ref_fiche_controle = (strip_tags($this->ref_fiche_controle));
+		$stmt->bindValue(":ref_fiche_controle", $this->ref_fiche_controle);
+		$stmt->bindValue(":n_user_approuver", $this->n_user_create);
+		$stmt->bindValue(":commenteur_controle_blue", $this->commenteur_controle_blue);
+		$stmt->bindValue(":date_approbation", date('Y-m-d H:i:s'));
+		$stmt->bindValue(":statut_control", '1');
+		$stmt->bindValue(":approbation_control", '1');
+		$stmt->bindValue(":is_draft_control", '0');
+		if ($stmt->execute()) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	function Supprimer()
@@ -1067,7 +1091,7 @@ class CLS_Controle
 	{
 
 		$e_adresse = new AdresseEntity($this->connection);
-		$query = "SELECT t_log_controle.gps_latitude_control,t_log_controle.gps_longitude_control,t_log_controle.ref_fiche_controle,t_log_controle.ref_last_install_found,t_log_controle.consommation_journaliere,t_log_controle.consommation_de_30jours_actuels,t_log_controle.consommation_de_30jours_precedents,t_log_controle.valeur_du_dernier_ticket,t_log_controle.index_de_tarif_du_compteur,t_log_controle.is_draft_control,DATE_FORMAT(t_log_controle.date_de_dernier_ticket_rentre,'%d/%m/%Y') as date_de_dernier_ticket_rentre_fr,t_log_controle.date_de_dernier_ticket_rentre,t_log_controle.ref_fiche_identification,t_log_controle.presence_inverseur,t_log_controle.numero_serie_cpteur,t_log_controle.marque_compteur,t_log_controle.type_cpteur,t_log_controle.clavier_deporter,t_log_controle.scelle_cpt_existant,t_log_controle.scelle_coffret_existant,t_log_controle.scelle_compteur_poser,t_log_controle.scelle_coffret_poser,t_log_controle.type_raccordement,t_log_controle.nbre_arrived,t_log_controle.section_cable_arrived,t_log_controle.par_wifi_cpl,t_log_controle.num_photo_cpteur,t_log_controle.num_photo_raccord,t_log_controle.possibility_fraud_expliquer,t_main_data.gps_latitude,t_main_data.gps_longitude,t_main_data.client_id,t_main_data.occupant_id,t_log_controle.etat_interrupteur,t_log_controle.credit_restant,t_log_controle.indicateur_led,t_log_controle.cas_de_fraude,t_log_controle.client_reconnait_pas,t_log_controle.type_fraude,t_log_controle.autocollant_place_controleur,t_log_controle.autocollant_trouver,t_log_controle.diagnostics_general,t_log_controle.avis_client,t_log_controle.refus_client_de_signer,t_log_controle.refus_access,t_log_controle.id_organisme_control,t_log_controle.chef_equipe_control,t_log_controle.controleur,t_log_controle.gps_latitude_control,t_log_controle.gps_longitude_control,t_log_controle.photo_compteur,t_log_controle.observation,DATE_FORMAT(date_identification,'%d/%m/%Y %H:%i:%s')  as date_identification_fr,t_main_data.date_identification,t_main_data.id_,t_main_data.p_a,Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue, coalesce(identite_client.phone_number,'-') as phone_client_blue,t_main_data.num_compteur_actuel,t_main_data.adresse_id,t_main_data.cvs_id,t_main_data.tarif_identif,t_log_controle.typ_conclusion,t_log_controle.sceller_identique,t_log_controle.dernier_sceller_compteur,t_log_controle.dernier_sceller_coffret FROM t_log_controle INNER JOIN t_main_data ON t_main_data.id_ = t_log_controle.ref_fiche_identification  INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id WHERE ref_fiche_controle = ?
+		$query = "SELECT t_log_controle.gps_latitude_control,t_log_controle.gps_longitude_control,t_log_controle.ref_fiche_controle,t_log_controle.ref_last_install_found,t_log_controle.consommation_journaliere,t_log_controle.consommation_de_30jours_actuels,t_log_controle.consommation_de_30jours_precedents,t_log_controle.valeur_du_dernier_ticket,t_log_controle.index_de_tarif_du_compteur,t_log_controle.is_draft_control,t_log_controle.approbation_control,DATE_FORMAT(t_log_controle.date_de_dernier_ticket_rentre,'%d/%m/%Y') as date_de_dernier_ticket_rentre_fr,t_log_controle.date_de_dernier_ticket_rentre,t_log_controle.ref_fiche_identification,t_log_controle.presence_inverseur,t_log_controle.numero_serie_cpteur,t_log_controle.marque_compteur,t_log_controle.type_cpteur,t_log_controle.clavier_deporter,t_log_controle.scelle_cpt_existant,t_log_controle.scelle_coffret_existant,t_log_controle.scelle_compteur_poser,t_log_controle.scelle_coffret_poser,t_log_controle.type_raccordement,t_log_controle.nbre_arrived,t_log_controle.section_cable_arrived,t_log_controle.par_wifi_cpl,t_log_controle.num_photo_cpteur,t_log_controle.num_photo_raccord,t_log_controle.possibility_fraud_expliquer,t_main_data.gps_latitude,t_main_data.gps_longitude,t_main_data.client_id,t_main_data.occupant_id,t_log_controle.etat_interrupteur,t_log_controle.credit_restant,t_log_controle.indicateur_led,t_log_controle.cas_de_fraude,t_log_controle.client_reconnait_pas,t_log_controle.type_fraude,t_log_controle.autocollant_place_controleur,t_log_controle.autocollant_trouver,t_log_controle.diagnostics_general,t_log_controle.avis_client,t_log_controle.refus_client_de_signer,t_log_controle.refus_access,t_log_controle.id_organisme_control,t_log_controle.chef_equipe_control,t_log_controle.controleur,t_log_controle.gps_latitude_control,t_log_controle.gps_longitude_control,t_log_controle.photo_compteur,t_log_controle.observation,DATE_FORMAT(date_identification,'%d/%m/%Y %H:%i:%s')  as date_identification_fr,t_main_data.date_identification,t_main_data.id_,t_main_data.p_a,Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue, coalesce(identite_client.phone_number,'-') as phone_client_blue,t_main_data.num_compteur_actuel,t_main_data.adresse_id,t_main_data.cvs_id,t_main_data.tarif_identif,t_log_controle.typ_conclusion,t_log_controle.sceller_identique,t_log_controle.dernier_sceller_compteur,t_log_controle.dernier_sceller_coffret FROM t_log_controle INNER JOIN t_main_data ON t_main_data.id_ = t_log_controle.ref_fiche_identification  INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id WHERE ref_fiche_controle = ?
 			LIMIT 0,1";
 		$result = array();
 		$items = array();

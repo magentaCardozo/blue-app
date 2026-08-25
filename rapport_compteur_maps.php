@@ -3174,7 +3174,6 @@ $controlleurs = [];
     <!--  <script type="text/javascript" src="assets/js/webcam.min.js"></script>  -->
     <script type="text/javascript" src="assets/js/WebcamEasyNew.js"></script>
     <script src="assets/js/parsley.js"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
     <!-- Configure a few settings and attach camera -->
     <!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1vmpecnt_2I2qzPz6BjQd2ZFo4PurMkA&libraries=geometry&callback=initMap" async></script> -->
     <!-- prettier-ignore -->

@@ -4112,6 +4112,23 @@ exit();*/
 			}*/
 		break;
 
+	case "create_control_approve":
+		if ($_POST) {
+			$item = new CLS_Controle($db);
+			$item->ref_fiche_controle = isset($_POST["id_"]) ? $_POST["id_"] : "";
+			$item->n_user_create = $utilisateur->code_utilisateur;
+			$item->commenteur_controle_blue = isset($_POST["comment_"]) ? $_POST["comment_"] : "";
+			if ($item->Approuver()) {
+				$result_array["error"] = 0;
+				$result_array["message"] = "Approbation effectuée avec succès";
+			} else {
+				$result_array["error"] = 1;
+				$result_array["message"] = "L'opération n'a pas pu être effectuée";
+			}
+			echo json_encode($result_array);
+		}
+		break;
+
 	case "create_refus_control":
 		/*if($utilisateur->HasDroits("10_230"))
 			{	*/

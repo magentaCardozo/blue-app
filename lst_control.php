@@ -623,9 +623,9 @@ $utilisateur->readOne();
 														}
 														?>
 													</select>
-												</div>
-												<button type="button" class="btn btn-warning  float-right" id="btn_Signaler_Exoneration" style="display:none;">&nbsp;Signaler Exonération</button>
-												<button type="button" class="btn btn-danger  float-right" id="btn_Signaler_Refus" style="display:none;">&nbsp;Signaler refus</button>
+												</div>														<button type="button" class="btn btn-warning  float-right" id="btn_Signaler_Exoneration" style="display:none;">&nbsp;Signaler Exonération</button>
+													<button type="button" class="btn btn-danger  float-right" id="btn_Signaler_Refus" style="display:none;">&nbsp;Signaler refus</button>
+													<?php if ($utilisateur->HasDroits("10_545")) { ?><button type="button" class="btn btn-success float-right" id="btn_Approuver_Control" style="display:none;">&nbsp;Approuver</button><?php } ?>
 
 												<div class="form-group">
 													<a class="btn btn-outline-light float-right" id="btn_map_viewer" data-toggle="modal" data-target="#myModalLeaflet" data-lat='' data-lng=''><i class="fas fa-map"></i> Visualiser Carte</a>
@@ -1686,6 +1686,39 @@ $utilisateur->readOne();
 			</div>
 		</div>
 	</div>
+	<div class="modal" id="box_approbation_control" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog  modal-lg" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h4 id="notification_title_control" class="modal-title">Approbation Contrôle</h4>
+					<a href="#" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</a>
+				</div>
+				<div class="modal-body text-center">
+					<form id="frm_approbation_control" method="post" action="controller.php" enctype="multipart/form-data">
+						<input id="view_control" name="view" type="hidden">
+						<input id="id_control_approve" name="id_" type="hidden">
+						<div class="form-group text-left">
+							<label class="text-dark text-left">Numéro Compteur</label>
+							<div id="approve_control_compteur" class="input-group font-medium text-primary"></div>
+						</div>
+						<div class="form-group mt-4 text-left">
+							<label class="text-dark text-left">Commentaire</label>
+							<div class="input-group" style="width: 100%;">
+								<textarea class="form-control pull-right" name="comment_" id="comment_approve_control"></textarea>
+							</div>
+						</div>
+						<div class="text-center">
+							<button id="btn_submit_approve_control" type="button" class="btn btn-success btn-fill">Approuver</button>
+						</div>
+						<div class="clearfix"></div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal" id="box_verify_compteur" tabindex="-1" role="dialog" aria-hidden="true">
 		<div class="modal-dialog  modal-sm" role="document" data-backdrop="static">
 			<div class="modal-content">
@@ -2280,6 +2313,103 @@ $utilisateur->readOne();
 				});
 
 			});
+
+			// ===== APPROBATION CONTROLE =====
+			<?php if ($utilisateur->HasDroits("10_545")) { ?>
+			$("#btn_Approuver_Control").click(function(e) {
+				e.preventDefault();
+				var num_cpteur = $('#numero_serie_cpteur').val();
+				$("#comment_approve_control").val('');
+				$("#view_control").val("create_control_approve");
+				$("#id_control_approve").val($('#id_control').val());
+				$("#approve_control_compteur").html(num_cpteur);
+				$("#notification_title_control").text("Approbation Contrôle");
+				$("#dlg_main-control").hide();
+				$("#box_approbation_control").show();
+			});
+
+			$('#btn_submit_approve_control').click(function() {
+				var form = document.getElementById("frm_approbation_control");
+				var formApprove = new FormData(form);
+				$("#btn_submit_approve_control").attr('disabled', 'disabled');
+				$("#btn_submit_approve_control").removeClass('btn-success');
+				$("#btn_submit_approve_control").text("Approbation en cours ...");
+				$.ajax({
+					url: "controller.php",
+					data: formApprove,
+					type: "POST",
+					contentType: false,
+					processData: false,
+					cache: false,
+					dataType: "json",
+					error: function(err) {
+						$("#btn_submit_approve_control").removeAttr('disabled');
+						$("#btn_submit_approve_control").addClass('btn-success');
+						$("#btn_submit_approve_control").text("Approuver");
+						swal({
+							title: "Information",
+							text: "Serveur non disponible",
+							type: "error",
+							showCancelButton: false,
+							confirmButtonColor: "#DD6B55",
+							confirmButtonText: "Ok",
+							closeOnConfirm: true,
+							closeOnCancel: false
+						}, function(isConfirm) {});
+					},
+					success: function(result) {
+						try {
+							if (result.error == 0) {
+								$("#btn_submit_approve_control").text("Approbation terminée.");
+								swal({
+									title: "Information",
+									text: result.message,
+									type: "success",
+									showCancelButton: false,
+									confirmButtonColor: "#00A65A",
+									confirmButtonText: "Ok",
+									closeOnConfirm: true,
+									closeOnCancel: false
+								}, function(isConfirm) {
+									$("#box_approbation_control").hide();
+									window.location.reload();
+								});
+							} else if (result.error == 1) {
+								$("#btn_submit_approve_control").removeAttr('disabled');
+								$("#btn_submit_approve_control").text("Approuver");
+								$("#btn_submit_approve_control").addClass('btn-success');
+								swal({
+									title: "Information",
+									text: result.message,
+									type: "error",
+									showCancelButton: false,
+									confirmButtonColor: "#DD6B55",
+									confirmButtonText: "Ok",
+									closeOnConfirm: true,
+									closeOnCancel: false
+								}, function(isConfirm) {});
+							}
+						} catch (erreur) {
+							swal({
+								title: "Information",
+								text: "Echec d'execution de la requete",
+								type: "error",
+								showCancelButton: false,
+								confirmButtonColor: "#DD6B55",
+								confirmButtonText: "Ok",
+								closeOnConfirm: true,
+								closeOnCancel: false
+							}, function(isConfirm) {});
+							$("#btn_submit_approve_control").removeAttr('disabled');
+							$("#btn_submit_approve_control").addClass('btn-success');
+							$("#btn_submit_approve_control").text("Approuver");
+						}
+					},
+					complete: function() {
+						console.log("Request finished.");
+					}
+				});				});
+			<?php } ?>
 
 			$("#add_on_du").click(function() {
 				$('#Du').datetimepicker('show');
@@ -3126,8 +3256,16 @@ $utilisateur->readOne();
 
 									if (result.readOnly == 1) {
 										$("#btn_save_control").hide();
+										$("#btn_Approuver_Control").hide();
 									} else {
 										$("#btn_save_control").show();
+									}
+
+									// Afficher le bouton Approuver si le contrôle est soumis (is_draft_control=0) et non encore approuvé
+									if (result.readOnly != 1 && result.data.is_draft_control == '0' && (result.data.approbation_control == null || result.data.approbation_control == '0')) {
+										$("#btn_Approuver_Control").show();
+									} else {
+										$("#btn_Approuver_Control").hide();
 									}
 
 
@@ -3340,7 +3478,6 @@ $utilisateur->readOne();
 	<script type="text/javascript" src="assets/js/WebcamEasyNew.js"></script>
 	<script src="assets/js/parsley.js"></script>
 	<script src="assets/js/lightgallery-all.js"></script>
-	<script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
 	<!-- Configure a few settings and attach camera -->
 	<!-- <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC1vmpecnt_2I2qzPz6BjQd2ZFo4PurMkA&libraries=geometry&callback=initMap" async></script> -->
 	<!-- prettier-ignore -->
