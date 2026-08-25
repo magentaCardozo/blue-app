@@ -102,7 +102,9 @@ $records_per_page = 30;
 $filtre = '';
 $query_data = [];
 
-if (isset($_GET['filtre-search']) && count($_GET['filtre-search']) > 0) {
+$filtre_raw = isset($_GET['filtre-search']) ? $_GET['filtre-search'] : [];
+    if (!is_array($filtre_raw)) $filtre_raw = [$filtre_raw];
+if (count($filtre_raw) > 0) {
     $est_installer = array();
     $e_commune = array();
     $param_cvs = array();
@@ -114,7 +116,7 @@ if (isset($_GET['filtre-search']) && count($_GET['filtre-search']) > 0) {
     $organisme_ = [];
 
     // $filtres = explode(',', $_GET['filtre-search']);
-    $filtres = $_GET['filtre-search'];
+    $filtres = $filtre_raw;
 
     foreach ($filtres as $k_ => $v_) {
         $filter_item = explode('=', $v_);
