@@ -6806,14 +6806,14 @@ DroitsNotGranted();
 		// Scan for existing multi-images and include in response
 		$ref = $result_array['data']['ref_fiche_controle'];
 		$imgFields = array(
-			'photo_compteur' => '_ctl',
+			'photo_compteur' => '_CTL_CTR',
 			'photo_avant_control' => '_CTL_BFR',
 			'photo_apres_control' => '_CTL_AFT',
 			'photo_sceller_un' => '_CTL_SC1',
 			'photo_sceller_deux' => '_CTL_SC2',
 			'photo_signature_client' => '_CTL_SGN'
 		);
-		$legacySuffixes = array('_ctl' => '_CTL_CTR', '_CTL_CTR' => '_ctl');
+		$legacySuffixes = array('_CTL_CTR' => '_ctl', '_ctl' => '_CTL_CTR');
 		$result_array['images'] = array();
 		foreach ($imgFields as $fieldName => $suffix) {
 			$result_array['images'][$fieldName] = array();
@@ -6827,6 +6827,10 @@ DroitsNotGranted();
 					}
 				} else {
 					$imgPath = 'pictures/' . $ref . $suffix . '_' . $n . '.png';
+					if ((!file_exists($imgPath) || filesize($imgPath) <= 0) && $fb) {
+						$fbPath = 'pictures/' . $ref . $fb . '_' . $n . '.png';
+						if (file_exists($fbPath) && filesize($fbPath) > 0) $imgPath = $fbPath;
+					}
 				}
 				if (file_exists($imgPath) && filesize($imgPath) > 0) {
 					$result_array['images'][$fieldName][] = $imgPath;
