@@ -2911,6 +2911,7 @@ $utilisateur->readOne();
 					});
 				}
 			});
+			});
 
 			jQuery(document).delegate('a.close,a.fermer', 'click', function(e) {
 				e.preventDefault();
