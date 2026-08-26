@@ -1784,6 +1784,7 @@ $utilisateur->readOne();
 	<script src="assets/js/mapviewer-script.js"></script>
 	<script src="assets/js/select2.min.js"></script>
 	<script>
+		
 		function previewFile(input, bloc_destination) {
 
 			if (input.files && input.files[0]) {
@@ -2855,8 +2856,61 @@ $utilisateur->readOne();
 				$('#box_fiche_viewer').hide();
 				if ($('body').hasClass('modal-open'))
 					$('body').removeClass('modal-open');
-
 			}
+
+			// Approuver depuis la Visualisation Fiche
+			jQuery(document).delegate('#btn_Approuver_Fiche', 'click', function(e) {
+				e.preventDefault();
+				var id_controle = $(this).data('id');
+				var btn = $(this);
+				swal({
+					title: "Approbation",
+					text: "Voulez-vous vraiment approuver cette fiche de contrôle ?",
+					type: "warning",
+					showCancelButton: true,
+					confirmButtonColor: "#00A65A",
+					confirmButtonText: "Oui, Approuver",
+					cancelButtonText: "Non",
+					closeOnConfirm: false,
+					closeOnCancel: true
+				}, function(isConfirm) {
+					if (isConfirm) {
+						btn.attr('disabled', 'disabled').text('Approbation en cours...');
+						$.ajax({
+							url: "controller.php",
+							type: "POST",
+							data: {
+								view: 'create_control_approve',
+								id_: id_controle,
+								comment_: ''
+							},
+							dataType: "json",
+							success: function(result) {
+								if (result.error == 0) {
+									swal({
+										title: "Information",
+										text: result.message,
+										type: "success",
+										showCancelButton: false,
+										confirmButtonColor: "#00A65A",
+										confirmButtonText: "Ok",
+										closeOnConfirm: true,
+										closeOnCancel: false
+									}, function(isConfirm) {
+										window.location.reload();
+									});
+							} else {
+									swal("Information", result.message, "error");
+									btn.removeAttr('disabled').text('<i class="fas fa-check"></i> Approuver');
+							}
+						},
+						error: function() {
+							swal("Information", "Serveur non disponible", "error");
+							btn.removeAttr('disabled').text('<i class="fas fa-check"></i> Approuver');
+						}
+					});
+				}
+			});
 
 			jQuery(document).delegate('a.close,a.fermer', 'click', function(e) {
 				e.preventDefault();

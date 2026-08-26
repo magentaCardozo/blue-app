@@ -438,7 +438,23 @@ switch ($view) {
 				$date_installation_date = $data['infos_installation']['date_fin_installation_fr'];
 			}
 			// $data['data']['date_identification_fr']
-			$result = '<div class="row"  >  
+			// Badge d'approbation + bouton Approuver
+			$is_draft = $data['data']['is_draft_control'];
+			$approbation = $data['data']['approbation_control'];
+			$badge_html = '';
+			if ($is_draft == '1') {
+				$badge_html = '<div class="mb-3"><span class="badge badge-info" style="font-size:14px;">Brouillon</span></div>';
+			} else if ($is_draft == '0' && (empty($approbation) || $approbation == '0')) {
+				$badge_html = '<div class="mb-3"><span class="badge badge-warning" style="font-size:14px;">Pas approuvé</span>';
+				if ($utilisateur->HasDroits("10_545")) {
+					$badge_html .= ' <button type="button" class="btn btn-success btn-sm ml-2" id="btn_Approuver_Fiche" data-id="' . $data['data']['ref_fiche_controle'] . '"><i class="fas fa-check"></i> Approuver</button>';
+				}
+				$badge_html .= '</div>';
+			} else if ($is_draft == '0' && $approbation == '1') {
+				$badge_html = '<div class="mb-3"><span class="badge badge-success" style="font-size:14px;">Approuvé</span></div>';
+			}
+
+			$result = $badge_html . '<div class="row"  >  
                         <div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
                             <div class="card">
                                 <h5 class="card-header">INFORMATIONS GENERALES</h5>
