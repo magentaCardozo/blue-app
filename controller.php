@@ -3852,6 +3852,10 @@ exit();*/
 							Date contrôle';
 				if ($row_["is_draft_control"] == '1') {
 					$result .= ' <span class="badge badge-info">Brouillon</span>';
+				} else if ($row_["is_draft_control"] == '0' && (empty($row_["approbation_control"]) || $row_["approbation_control"] == '0')) {
+					$result .= ' <span class="badge badge-warning">Pas approuvé</span>';
+				} else if ($row_["is_draft_control"] == '0' && $row_["approbation_control"] == '1') {
+					$result .= ' <span class="badge badge-success">Approuvé</span>';
 				}
 
 				$chef_equipe = $utilisateur->GetUserDetailName($row_['chef_equipe_control']);

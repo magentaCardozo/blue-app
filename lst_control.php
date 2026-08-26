@@ -547,6 +547,7 @@ $utilisateur->readOne();
 				<form id="mainForm_control" method="post" enctype="multipart/form-data">
 					<div class="modal-header">
 						<h5 class="modal-title" id="titre_control"></h5>
+						<span id="badge_approbation_control" class="badge ml-2" style="font-size:14px;display:none;"></span>
 						<a href="#" class="close" data-dismiss="modal" aria-label="Close">
 							<span aria-hidden="true">&times;</span>
 						</a>
@@ -2709,6 +2710,9 @@ $utilisateur->readOne();
 								// $("#photo_pa_avant").attr('src', 'pictures/' + result.data.id_ + '.jpeg');
 								//	'http://127.0.0.1:8080/blue-app/pictures/' + result.data.photo_pa_avant);
 
+								// Badge d'approbation
+								$("#badge_approbation_control").hide();
+
 								$('#dlg_main-control').show();
 							} else if (result.error == 1) {
 								swal({
@@ -3056,6 +3060,7 @@ $utilisateur->readOne();
 			$("#photo_pa_avant").attr('src', 'pictures/');
 			// Reset all multi-image slots
 			resetAllImageSlots();
+			$("#badge_approbation_control").hide();
 			load_chief = true;
 		}
 
@@ -3266,6 +3271,17 @@ $utilisateur->readOne();
 										$("#btn_Approuver_Control").show();
 									} else {
 										$("#btn_Approuver_Control").hide();
+									}
+
+									// Badge d'approbation dans le header
+									var $badge = $("#badge_approbation_control");
+									$badge.hide();
+									if (result.data.is_draft_control == '1') {
+										$badge.text('Brouillon').removeClass('badge-warning badge-success badge-info').addClass('badge-info').show();
+									} else if (result.data.is_draft_control == '0' && (result.data.approbation_control == null || result.data.approbation_control == '0')) {
+										$badge.text('Pas approuvé').removeClass('badge-warning badge-success badge-info').addClass('badge-warning').show();
+									} else if (result.data.is_draft_control == '0' && result.data.approbation_control == '1') {
+										$badge.text('Approuvé').removeClass('badge-warning badge-success badge-info').addClass('badge-success').show();
 									}
 
 
