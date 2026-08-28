@@ -17,3 +17,9 @@ tickets
 electra/
 apk/
 electra.zip
+
+# Docker
+Dockerfile
+docker-compose.yml
+mysql.cnf
+db/backup.sql
