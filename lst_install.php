@@ -380,31 +380,17 @@ body { background: linear-gradient(to left, rgb(86, 171, 47), rgb(168, 224, 99))
 													foreach ($chief_rows as $row_chief) {
 														echo "<option value=t_log_installation.chef_equipe='{$row_chief["code_utilisateur"]}'>Chef équipe - {$row_chief["nom_complet"]}</option>";
 													}
-												}
-
-												$stmt_select = $province->getAllProvinces();
-												$provinces = $stmt_select->fetchAll(PDO::FETCH_ASSOC);
-
-												foreach ($provinces as $row_select) {
-													// echo "<option value=t_param_adresse_entity.code='" . $row_select["code"] . "'>Province - " . $row_select["libelle"] . "</option>";
-												}
-
-												foreach ($provinces as $province) {
-													$stmt_select = $commune->GetProvinceAllCommune($province['code']);
-
-													$chief_rows = $stmt_select->fetchAll(PDO::FETCH_ASSOC);
-													foreach ($chief_rows as  $row_select) {
+												}													// Optimized: fetch all communes in one query instead of N+1 per province
+													$stmt_communes = $db->query("SELECT DISTINCT pa.code, pa.libelle FROM t_param_adresse_entity pa INNER JOIN t_param_adresse_entity parent ON pa.parent_id = parent.code WHERE parent.category_id = 4 ORDER BY pa.libelle");
+													while ($row_select = $stmt_communes->fetch(PDO::FETCH_ASSOC)) {
 														echo "<option value=e_commune.code='" . $row_select["code"] . "'>Commune - " . $row_select["libelle"] . "</option>";
 													}
 
-
-													$stmt_select = $commune->GetProvinceAllCVS($province['code']);
-													$rows = $stmt_select->fetchAll(PDO::FETCH_ASSOC);
-
-													foreach ($rows as $row_select) {
+													// Optimized: fetch all CVS in one query instead of N+1 per province
+													$stmt_cvs = $db->query("SELECT DISTINCT pa.code, pa.libelle FROM t_param_adresse_entity pa INNER JOIN t_param_adresse_entity parent ON pa.parent_id = parent.code WHERE parent.category_id IN (5,6,7) ORDER BY pa.libelle");
+													while ($row_select = $stmt_cvs->fetch(PDO::FETCH_ASSOC)) {
 														echo "<option value=t_param_cvs.code='" . $row_select["code"] . "'>CVS - " . $row_select["libelle"] . "</option>";
 													}
-												}
 
 												$stmt_select = $site->GetAll();
 												$rows = $stmt_select->fetchAll(PDO::FETCH_ASSOC);
