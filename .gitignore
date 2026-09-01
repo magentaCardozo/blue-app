@@ -23,3 +23,8 @@ Dockerfile
 docker-compose.yml
 mysql.cnf
 db/backup.sql
+
+
+.DS_Store
+db/.DS_Store
+db/base.sql
