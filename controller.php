@@ -3816,6 +3816,8 @@ exit();*/
 
 			$result = "";
 			$num_line = 0;
+			$chef_name_cache = [];
+			$addr_cache = [];
 			foreach ($stmt as $row_) {
 				// while ($row_ = $stmt->fetch(PDO::FETCH_ASSOC)) {
 				$num_line++;
@@ -3852,12 +3854,9 @@ exit();*/
 
 
 
-				$organisme->ref_organisme = $row_["id_organisme_control"];
-				$organisme->GetDetailIN();
-
-				$cvs->code = $row_["cvs_id"];
-				$cvs->GetDetailIN();
-				$ctl_rw = $utilisateur->readDetail($row_["controleur"]);
+				// Use data already in query results instead of per-row queries
+				// denomination (organisme) and nom_complet (controleur) are already SELECTed
+				// Only chef_equipe name needs a separate lookup
 
 				$result .= ' </div>
                                         </div>
@@ -3874,7 +3873,12 @@ exit();*/
 					$result .= ' <span class="badge badge-success">Approuvé</span>';
 				}
 
-				$chef_equipe = $utilisateur->GetUserDetailName($row_['chef_equipe_control']);
+				// chef_equipe lookup - use pre-fetched cache if available, else single query
+				$chef_key = $row_['chef_equipe_control'];
+				if (!isset($chef_name_cache[$chef_key])) {
+					$chef_name_cache[$chef_key] = $utilisateur->GetUserDetailName($chef_key);
+				}
+				$chef_equipe = $chef_name_cache[$chef_key];
 				$result .= '</div>
 						<div class="font-medium text-primary control-date">' .  $row_["date_controle_fr"] . '</div>
 					</div>
@@ -3882,14 +3886,14 @@ exit();*/
 						<div class="text-dark">
 							Equipe contrôle
 						</div>
-						<div class="font-medium text-primary control-organe">' .  $organisme->denomination . '</div>
+						<div class="font-medium text-primary control-organe">' .  $row_["denomination"] . '</div>
 					</div>
 					
 					<div class="col-sm-3 text-left">
 						<div class="text-dark">
 							Contrôleur
 						</div>
-						<div class="font-medium text-primary control-staff">' .  $ctl_rw['nom_complet'] . '</div>
+						<div class="font-medium text-primary control-staff">' .  $row_['nom_complet'] . '</div>
 					</div>
 					
 					<div class="col-sm-3 text-left">
@@ -3916,13 +3920,13 @@ exit();*/
 						<div class="text-dark">
 							CVS
 						</div>
-						<div class="font-medium text-primary control-cvs">' .   $cvs->libelle . '</div>
+						<div class="font-medium text-primary control-cvs">' .   $row_['libelle'] . '</div>
 					</div>
 					<div class="col-sm-3">
 						<div class="text-dark">
 							Adresse
 						</div>
-						<div class="font-medium text-primary client-device">' . $commune->GetAdressInfoTexte($row_["adresse_id"]) . '</div>
+						<div class="font-medium text-primary client-device">' . (isset($addr_cache[$row_["adresse_id"]]) ? $addr_cache[$row_["adresse_id"]] : ($addr_cache[$row_["adresse_id"]] = $commune->GetAdressInfoTexte($row_["adresse_id"]))) . '</div>
 					</div>';
 
 				// if ($utilisateur->HasDroits("10_930")) {

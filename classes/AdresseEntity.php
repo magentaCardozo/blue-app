@@ -545,6 +545,24 @@ class AdresseEntity
 		return $stmt;
 	}
 
+	// Batch load all communes (replaces N+1 per-province queries)
+	function getAllCommunesFlat()
+	{
+		$query = "SELECT code, libelle FROM " . $this->table_name . " WHERE category_id = 8 ORDER BY libelle";
+		$stmt = $this->connection->prepare($query);
+		$stmt->execute();
+		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+	}
+
+	// Batch load all CVS (single query)
+	function getAllCvsFlat()
+	{
+		$query = "SELECT code, libelle FROM t_param_cvs ORDER BY libelle";
+		$stmt = $this->connection->prepare($query);
+		$stmt->execute();
+		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+	}
+
 	function readAll($from_record_num, $records_per_page, $category_id)
 	{
 		$query = "SELECT code,category_id,parent_id,libelle FROM " . $this->table_name . " where category_id = :category_id ORDER BY libelle ASC LIMIT {$from_record_num}, {$records_per_page}";

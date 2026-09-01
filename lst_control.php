@@ -14,7 +14,6 @@ $parambase = "";
 header('Content-type: text/html;charset=utf-8');
 
 require_once 'vendor/autoload.php';
-require_once 'vendor/autoload.php';
 require_once 'loader/init.php';
 Autoloader::Load('classes');
 include_once 'core.php';
@@ -448,21 +447,16 @@ $utilisateur->readOne();
 													echo "<option value=t_log_controle.chef_equipe_control='" . $row_chief["code_utilisateur"] .  "'>Chef-Equipe - " . $row_chief["nom_complet"] . "</option>";
 												}
 
-												$stmt_select = $province->getAllProvinces();
-												$provinces = $stmt_select->fetchAll(PDO::FETCH_ASSOC);
+												// Batch load all communes and CVS in 2 queries instead of N+1 per-province
+												$all_communes = $commune->getAllCommunesFlat();
+												$all_cvs = $commune->getAllCvsFlat();
 
+												foreach ($all_communes as $row_select) {
+													echo "<option value=e_commune.code='" . $row_select["code"] . "'>Commune - " . $row_select["libelle"] . "</option>";
+												}
 
-												foreach ($provinces as $province) {
-													$stmt_select = $commune->GetProvinceAllCommune($province['code']);
-													while ($row_select = $stmt_select->fetch(PDO::FETCH_ASSOC)) {
-														echo "<option value=e_commune.code='" . $row_select["code"] . "'>Commune - " . $row_select["libelle"] . "</option>";
-													}
-
-
-													$stmt_select = $commune->GetProvinceAllCVS($province['code']);
-													while ($row_select = $stmt_select->fetch(PDO::FETCH_ASSOC)) {
-														echo "<option value=t_param_cvs.code='" . $row_select["code"] . "'>CVS - " . $row_select["libelle"] . "</option>";
-													}
+												foreach ($all_cvs as $row_select) {
+													echo "<option value=t_param_cvs.code='" . $row_select["code"] . "'>CVS - " . $row_select["libelle"] . "</option>";
 												}
 
 												$stmt_select = $site->GetAll();
