@@ -620,7 +620,7 @@ $utilisateur->readOne();
 													</select>
 												</div>														<button type="button" class="btn btn-warning  float-right" id="btn_Signaler_Exoneration" style="display:none;">&nbsp;Signaler Exonération</button>
 													<button type="button" class="btn btn-danger  float-right" id="btn_Signaler_Refus" style="display:none;">&nbsp;Signaler refus</button>
-													<?php if ($utilisateur->HasDroits("10_545")) { ?><button type="button" class="btn btn-success float-right" id="btn_Approuver_Control" style="display:none;">&nbsp;Approuver</button><?php } ?>
+													<?php if ($utilisateur->HasDroits("10_545") || $utilisateur->is_chief == '1') { ?><button type="button" class="btn btn-success float-right" id="btn_Approuver_Control" style="display:none;">&nbsp;Approuver</button><?php } ?>
 
 												<div class="form-group">
 													<a class="btn btn-outline-light float-right" id="btn_map_viewer" data-toggle="modal" data-target="#myModalLeaflet" data-lat='' data-lng=''><i class="fas fa-map"></i> Visualiser Carte</a>
@@ -2311,7 +2311,8 @@ $utilisateur->readOne();
 			});
 
 			// ===== APPROBATION CONTROLE =====
-			<?php if ($utilisateur->HasDroits("10_545")) { ?>
+			// Droit 10_545 ou chef d'équipe (vérification serveur fine via can_approve)
+			<?php if ($utilisateur->HasDroits("10_545") || $utilisateur->is_chief == '1') { ?>
 			$("#btn_Approuver_Control").click(function(e) {
 				e.preventDefault();
 				var num_cpteur = $('#numero_serie_cpteur').val();
@@ -3316,7 +3317,7 @@ $utilisateur->readOne();
 									}
 
 									// Afficher le bouton Approuver si le contrôle est soumis (is_draft_control=0) et non encore approuvé
-									if (result.readOnly != 1 && result.data.is_draft_control == '0' && (result.data.approbation_control == null || result.data.approbation_control == '0')) {
+									if (result.readOnly != 1 && (result.can_approve == true || result.can_approve == 1) && result.data.is_draft_control == '0' && (result.data.approbation_control == null || result.data.approbation_control == '0')) {
 										$("#btn_Approuver_Control").show();
 									} else {
 										$("#btn_Approuver_Control").hide();

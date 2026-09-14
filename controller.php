@@ -446,7 +446,7 @@ switch ($view) {
 				$badge_html = '<div class="mb-3"><span class="badge badge-info" style="font-size:14px;">Brouillon</span></div>';
 			} else if ($is_draft == '0' && (empty($approbation) || $approbation == '0')) {
 				$badge_html = '<div class="mb-3"><span class="badge badge-warning" style="font-size:14px;">Pas approuvé</span>';
-				if ($utilisateur->HasDroits("10_545")) {
+				if ($utilisateur->HasDroits("10_545") || $item->GetChefEquipeControle($data['data']['ref_fiche_controle'], $utilisateur->code_utilisateur)) {
 					$badge_html .= ' <button type="button" class="btn btn-success btn-sm ml-2" id="btn_Approuver_Fiche" data-id="' . $data['data']['ref_fiche_controle'] . '"><i class="fas fa-check"></i> Approuver</button>';
 				}
 				$badge_html .= '</div>';
@@ -4234,6 +4234,13 @@ exit();*/
 		if ($_POST) {
 			$item = new CLS_Controle($db);
 			$item->ref_fiche_controle = isset($_POST["id_"]) ? $_POST["id_"] : "";
+			// Droit : soit le droit d'approbation (10_545), soit le chef d'équipe du contrôle
+			$can_approve = $utilisateur->HasDroits("10_545")
+				|| $item->GetChefEquipeControle($item->ref_fiche_controle, $utilisateur->code_utilisateur);
+			if (!$can_approve) {
+				DroitsNotGranted();
+				break;
+			}
 			$item->n_user_create = $utilisateur->code_utilisateur;
 			$item->commenteur_controle_blue = isset($_POST["comment_"]) ? $_POST["comment_"] : "";
 			if ($item->Approuver()) {
@@ -6937,6 +6944,10 @@ DroitsNotGranted();
 			$item->ref_fiche_controle = isset($_GET["k"]) ? $_GET["k"] : "";
 		$result_array = $item->GetDetail($utilisateur->id_service_group);
 		$result_array['readOnly'] = 0;
+
+		// Le chef d'équipe du contrôle peut aussi approuver (10_545 ou chef d'équipe)
+		$result_array['can_approve'] = $utilisateur->HasDroits("10_545")
+			|| $item->GetChefEquipeControle($item->ref_fiche_controle, $utilisateur->code_utilisateur);
 
 		// Scan for existing multi-images and include in response
 		$ref = $result_array['data']['ref_fiche_controle'];

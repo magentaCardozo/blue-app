@@ -1087,6 +1087,28 @@ class CLS_Controle
 		return $user_filtre;
 	}
 
+	// Indique si l'utilisateur courant est le chef d'équipe du contrôle donné
+	// (contrôles dont il est enregistré comme chef_equipe_control, ou réalisés par un membre de son équipe)
+	function GetChefEquipeControle($ref_fiche_controle, $code_utilisateur)
+	{
+		$query = "SELECT COUNT(*) as nb
+			FROM t_log_controle lc
+			LEFT JOIN t_utilisateurs u_controleur ON lc.controleur = u_controleur.code_utilisateur
+			WHERE lc.ref_fiche_controle = :ref_fiche_controle
+			AND lc.annule = 0
+			AND (
+				lc.chef_equipe_control = :code_utilisateur
+				OR u_controleur.chef_equipe_id = :code_utilisateur3
+			)";
+		$stmt = $this->connection->prepare($query);
+		$stmt->bindValue(":ref_fiche_controle", strip_tags($ref_fiche_controle));
+		$stmt->bindValue(":code_utilisateur", strip_tags($code_utilisateur));
+		$stmt->bindValue(":code_utilisateur3", strip_tags($code_utilisateur));
+		$stmt->execute();
+		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $row && intval($row['nb']) > 0;
+	}
+
 	function GetDetail($id_service_group)
 	{
 
