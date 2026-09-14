@@ -147,10 +147,46 @@ function extractionCompteurControlXLS($user)
 					if ($row->getRowIndex() == 0) continue; // skip first row
 				}
 
-				$Numero_compteur = isset($r[0]) ? trim($r[0]) : '';
-				$Nom_complet_Controleur = isset($r[1]) ? trim($r[1]) : '';
+		$Numero_compteur = isset($r[0]) ? trim($r[0]) : '';
+$Nom_complet_Controleur = isset($r[1]) ? trim($r[1]) : '';
 
-				$resultat = $item->GetCompteurAdresseForControl($Numero_compteur, $utilisateur);
+// 1. Première recherche avec le numéro original
+$resultat = $item->GetCompteurAdresseForControl(
+    $Numero_compteur,
+    $utilisateur
+);
+
+// 2. Ajouter 0 UNIQUEMENT si le compteur est réellement "Non trouvé"
+if (
+    isset($resultat["error"]) &&
+    $resultat["error"] == 1 &&
+    isset($resultat["message"]) &&
+    $resultat["message"] == "Non trouvé"
+) {
+
+    // Seulement si le numéro contient exactement 10 chiffres
+    if (preg_match('/^\d{10}$/', $Numero_compteur)) {
+
+        $Numero_compteur_corrige = '0' . $Numero_compteur;
+
+        // 3. Deuxième recherche avec le 0
+        $resultat = $item->GetCompteurAdresseForControl(
+            $Numero_compteur_corrige,
+            $utilisateur
+        );
+
+        // Si trouvé avec le 0, on utilise le numéro corrigé
+        if (
+            isset($resultat["error"]) &&
+            $resultat["error"] == 0
+        ) {
+            $Numero_compteur = $Numero_compteur_corrige;
+        }
+    }
+}
+
+
+
 				if (isset($resultat) && isset($resultat["error"])) {
 					if ($resultat["error"] == 1) {
 						$error_count++;
