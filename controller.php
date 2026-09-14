@@ -3112,6 +3112,49 @@ exit();*/
 		$result = "";
 		if ($utilisateur->HasDroits("10_90")) {
 			$num_line = 0;
+
+			// ========================================================
+			// BATCH LOAD — éviter les N+1 queries dans la boucle
+			// ========================================================
+			// 1) Statuts d'installation (table paramétrique, ~5 lignes)
+			$batch_statuts = [];
+			$batch_statuts_q = $db->query("SELECT code, libelle FROM t_param_statut_installation");
+			while ($sr = $batch_statuts_q->fetch(PDO::FETCH_ASSOC)) {
+				$batch_statuts[$sr['code']] = $sr['libelle'];
+			}
+
+			// 2) Motifs en cours (table paramétrique)
+			$batch_motifs = [];
+			$batch_motifs_q = $db->query("SELECT code, libelle FROM t_param_motif_en_cours");
+			while ($mr = $batch_motifs_q->fetch(PDO::FETCH_ASSOC)) {
+				$batch_motifs[$mr['code']] = $mr['libelle'];
+			}
+
+			// 3) Installateurs supplémentaires (1 seule requête au lieu de N)
+			$all_id_installs = array_column($stmt, 'id_install');
+			$batch_inst_suppl = [];
+			if (!empty($all_id_installs)) {
+				$ph = implode(',', array_fill(0, count($all_id_installs), '?'));
+				$bs = $db->prepare("SELECT t_log_installation_users.ref_inst_, t_utilisateurs.nom_complet FROM t_log_installation_users INNER JOIN t_utilisateurs ON t_log_installation_users.ref_user = t_utilisateurs.code_utilisateur WHERE t_log_installation_users.ref_inst_ IN ($ph)");
+				$bs->execute($all_id_installs);
+				while ($br = $bs->fetch(PDO::FETCH_ASSOC)) {
+					$batch_inst_suppl[$br['ref_inst_']][] = $br['nom_complet'];
+				}
+			}
+
+			// 4) Adresses complètes (1 seule requête au lieu de 4N)
+			$all_adr_ids = array_unique(array_filter(array_column($stmt, 'adresse_id')));
+			$batch_adresses = [];
+			if (!empty($all_adr_ids)) {
+				$ph = implode(',', array_fill(0, count($all_adr_ids), '?'));
+				$ba = $db->prepare("SELECT adr.id, adr.numero, v.libelle AS ville_libelle, av.libelle AS avenue_libelle, q.libelle AS quartier_libelle, c.libelle AS commune_libelle FROM t_log_adresses adr LEFT JOIN t_param_adresse_entity v ON adr.ville_id = v.code LEFT JOIN t_param_adresse_entity q ON adr.quartier_id = q.code LEFT JOIN t_param_adresse_entity c ON adr.commune_id = c.code LEFT JOIN t_param_adresse_entity av ON adr.avenue = av.code WHERE adr.id IN ($ph)");
+				$ba->execute($all_adr_ids);
+				while ($ar = $ba->fetch(PDO::FETCH_ASSOC)) {
+					$batch_adresses[$ar['id']] = $ar;
+				}
+			}
+			// ========================================================
+
 			// while ($row_ = $stmt->fetch(PDO::FETCH_ASSOC)) {
 			foreach ($stmt as $row_) {
 				$num_line++;
@@ -3166,32 +3209,25 @@ exit();*/
 												 if ($utilisateur->HasDroits("10_80")) {
                                                             $result .=  '<a href="#" class="dropdown-item delete-install" data-name-install="'.$row_["nom_client_blue"].'" data-id-install="'.$row_["id_install"].'">Supprimer</a>';
                                                         }*/
-				$organisme->ref_organisme = $row_["id_equipe"];
-				$organisme->GetDetailIN();
-
-				$cvs->code = $row_["cvs_id"];
-				$cvs->GetDetailIN();
+				// Utiliser directement les données de la query principale (déjà JOINées)
+				$organisme_denomination = $row_["denomination"] ?? '';
+				$cvs_libelle = $row_["libelle"] ?? '';
 				$ctl_rw = $row_["nom_complet"] 
     			? ['nom_complet'=>$row_["nom_complet"]] 
     			: ['nom_complet'=>'Utilisateur supprimé'];
-				$statut_installation->code =  $row_["statut_installation"];
-				$row_statut = $statut_installation->GetDetail();
 
-				// $motif_enCours->code =  $row_["motif_en_cours"];
-				// $row_motif = $motif_enCours->GetDetail();
+				// Lookup statut depuis le batch (0 query)
+				$row_statut_libelle = $batch_statuts[$row_["statut_installation"]] ?? '';
 
-				$codes = explode(',', $row_["motif_en_cours"]); // split the string into an array
+				// Lookup motifs depuis le batch (0 query au lieu de N×GetDetail)
+				$codes = explode(',', $row_["motif_en_cours"]);
 				$libelles = [];
-
 				foreach ($codes as $code) {
-					$motif_enCours->code = trim($code); // remove any whitespace
-					$row_motif = $motif_enCours->GetDetail();
-					if (isset($row_motif["libelle"])) {
-						$libelles[] = $row_motif["libelle"];
+					$code = trim($code);
+					if ($code !== '' && isset($batch_motifs[$code])) {
+						$libelles[] = $batch_motifs[$code];
 					}
 				}
-
-				// join all libelles into a comma-separated string
 				$motifs_libelle = implode(', ', $libelles);
 
 				// $result .= '</div>
@@ -3209,7 +3245,7 @@ exit();*/
 				$result .= '</div>
 						<div class="font-medium text-primary control-date">';
 				$result .= Utils::getDateInstall_Value($row_["statut_installation"], $row_["date_fin_installation_fr"], $row_["date_debut_installation_fr"]);
-				$result .= '</div><span class="badge ' .  Utils::getAssign_Control_Badge($row_["statut_installation"]) . '">' .  $row_statut['libelle'] . '</span> ' ;
+				$result .= '</div><span class="badge ' .  Utils::getAssign_Control_Badge($row_["statut_installation"]) . '">' .  $row_statut_libelle . '</span> ' ;
 
 				if (($row_["motif_en_cours"] !== null) and ($row_["motif_en_cours"] !== "")) {
 					// tronquer à 30-40 caractères max
@@ -3235,7 +3271,7 @@ exit();*/
 						<div class="text-dark">
 							Equipe installation
 						</div>
-						<div class="font-medium text-primary control-organe">' . $organisme->denomination  . '</div>
+						<div class="font-medium text-primary control-organe">' . $organisme_denomination  . '</div>
 					</div>
 					
 					<div class="col-sm-2">
@@ -3252,15 +3288,8 @@ exit();*/
 					</div>';
 				$installateurs_suppl = "";
 
-				$query = "SELECT t_utilisateurs.code_utilisateur,t_utilisateurs.nom_complet,t_log_installation_users.ref_inst_ FROM t_log_installation_users INNER JOIN t_utilisateurs ON t_log_installation_users.ref_user = t_utilisateurs.code_utilisateur where t_log_installation_users.ref_inst_=:ref_inst_";
-				$stmt_inst_suppl = $db->prepare($query);
-				$stmt_inst_suppl->bindValue(":ref_inst_", $row_["id_install"]);
-
-				// $cacher = new Cacher();
-				$ro = $cacher->get(['installateurs-supplementaires', $row_["id_install"]], function () use ($stmt_inst_suppl) {
-					$stmt_inst_suppl->execute();
-					return  $stmt_inst_suppl->fetchAll(PDO::FETCH_ASSOC);
-				});
+				// Lookup installateurs supplémentaires depuis le batch (0 query)
+				$ro = $batch_inst_suppl[$row_["id_install"]] ?? [];
 
 				if (count($ro) > 0) {
 					$result .= '<div class="col-xl-12 col-lg-12 col-md-12 col-sm-12 col-12">
@@ -3271,8 +3300,8 @@ exit();*/
 											<div class="input-group" style="width: 100%;"> 
 											<div class="font-medium text-primary ">';
 
-					foreach ($ro as $ins_suppItem) {
-						$installateurs_suppl .= "  "  . $ins_suppItem["nom_complet"] . ",";
+					foreach ($ro as $nom_supp) {
+						$installateurs_suppl .= "  "  . $nom_supp . ",";
 					}
 					$clean = rtrim($installateurs_suppl, ",");
 					$result .= $clean .  '</div>
@@ -3301,7 +3330,7 @@ exit();*/
 						<div class="text-dark">
 							CVS
 						</div>
-						<div class="font-medium text-primary control-cvs">' . $cvs->libelle .
+						<div class="font-medium text-primary control-cvs">' . $cvs_libelle .
 					' <span class="badge ' . Utils::getInstallType_Badge($row_["type_installation"]) . '">' . Utils::getInstallType_Label($row_["type_installation"]);
 				$result .= '</span>
 						</div>
@@ -3309,7 +3338,7 @@ exit();*/
 						<div class="text-dark">
 							Adresse
 						</div>
-						<div class="font-medium text-primary client-device">' . $adressEt->GetAdressInfoTexte($row_["adresse_id"]) . '</div>
+						<div class="font-medium text-primary client-device">' . ($batch_adresses[$row_["adresse_id"]] ? $batch_adresses[$row_["adresse_id"]]['ville_libelle'] . ', N° ' . ($batch_adresses[$row_["adresse_id"]]['numero'] ?? '') . ' Av/' . $batch_adresses[$row_["adresse_id"]]['avenue_libelle'] . ' Q/' . $batch_adresses[$row_["adresse_id"]]['quartier_libelle'] . ' C/' . $batch_adresses[$row_["adresse_id"]]['commune_libelle'] : 'Adresse non trouvée') . '</div>
 					</div>';
 				if ($utilisateur->HasDroits("10_800")) {
 					$result .= '<a  href="#" class="btn btn-outline-light float-right ml-1 view-fiche" data-name="' . $row_["nom_client_blue"] . '" data-id="' . $row_["id_install"] . '">Voir Fiche</a>';
@@ -3503,7 +3532,48 @@ exit();*/
 			$result = "";
 			$num_line = 0;
 			$results = [];
+
+			// ========================================================
+			// BATCH LOAD — éviter les N+1 queries dans la boucle
+			// ========================================================
+			// 1) Récupérer toutes les données en tableau pour le batch
+			$all_rows = [];
+			$all_chef_ids = [];
+			$all_adr_ids = [];
 			while ($row_ = $stmt->fetch(PDO::FETCH_ASSOC)) {
+				$all_rows[] = $row_;
+				if (!empty($row_['chef_equipe_control'])) {
+					$all_chef_ids[] = $row_['chef_equipe_control'];
+				}
+				if (!empty($row_['adresse_id'])) {
+					$all_adr_ids[] = $row_['adresse_id'];
+				}
+			}
+
+			// 2) Batch-load chefs d'équipe (1 seule requête)
+			$batch_chefs = [];
+			if (!empty($all_chef_ids)) {
+				$ph = implode(',', array_fill(0, count(array_unique($all_chef_ids)), '?'));
+				$bc = $db->prepare("SELECT code_utilisateur, nom_complet FROM t_utilisateurs WHERE code_utilisateur IN ($ph)");
+				$bc->execute(array_unique($all_chef_ids));
+				while ($cr = $bc->fetch(PDO::FETCH_ASSOC)) {
+					$batch_chefs[$cr['code_utilisateur']] = $cr['nom_complet'];
+				}
+			}
+
+			// 3) Batch-load adresses complètes (1 seule requête)
+			$batch_adresses = [];
+			if (!empty($all_adr_ids)) {
+				$ph = implode(',', array_fill(0, count(array_unique($all_adr_ids)), '?'));
+				$ba = $db->prepare("SELECT adr.id, adr.numero, v.libelle AS ville_libelle, av.libelle AS avenue_libelle, q.libelle AS quartier_libelle, c.libelle AS commune_libelle FROM t_log_adresses adr LEFT JOIN t_param_adresse_entity v ON adr.ville_id = v.code LEFT JOIN t_param_adresse_entity q ON adr.quartier_id = q.code LEFT JOIN t_param_adresse_entity c ON adr.commune_id = c.code LEFT JOIN t_param_adresse_entity av ON adr.avenue = av.code WHERE adr.id IN ($ph)");
+				$ba->execute(array_unique($all_adr_ids));
+				while ($ar = $ba->fetch(PDO::FETCH_ASSOC)) {
+					$batch_adresses[$ar['id']] = $ar;
+				}
+			}
+			// ========================================================
+
+			foreach ($all_rows as $row_) {
 				$num_line++;
 
 				$result = [
@@ -3524,27 +3594,22 @@ exit();*/
 					$result['is_draft_control'] = $row_['is_draft_control'];
 				}
 
-				$organisme->ref_organisme = $row_["id_organisme_control"];
-				$organisme->GetDetailIN();
-
-				$cvs->code = $row_["cvs_id"];
-				$cvs->GetDetailIN();
-				$ctl_rw = $utilisateur->readDetail($row_["controleur"]);
-
+				// Utiliser directement les données de la query principale (déjà JOINées)
 				$result['date_controle_fr'] = $row_['date_controle_fr'];
 
-
-				$chef_equipe = $utilisateur->GetUserDetailName($row_['chef_equipe_control']);
-				$result['organisme_denomination'] = $organisme->denomination;
-				$result['nom_complet'] = $ctl_rw['nom_complet'];
-				$result['chef_equipe'] = $chef_equip;
+				$result['organisme_denomination'] = $row_['denomination'] ?? '';
+				$result['nom_complet'] = $row_['nom_complet'] ?? 'Utilisateur supprimé';
+				$result['chef_equipe'] = $batch_chefs[$row_['chef_equipe_control']] ?? '';
 				$result['nom_client_blue'] = $row_["nom_client_blue"];
 				$result['phone_client_blue'] = $row_["phone_client_blue"];
-				$result['cvs_libelle'] =  $cvs->libelle;
-				$result['adresse'] = $commune->GetAdressInfoTexte($row_["adresse_id"]);
+				$result['cvs_libelle'] = $row_['libelle'] ?? '';
+
+				// Adresse depuis le batch (0 query)
+				$adr = $batch_adresses[$row_["adresse_id"]] ?? null;
+				$result['adresse'] = $adr ? $adr['ville_libelle'] . ', N° ' . ($adr['numero'] ?? '') . ' Av/' . $adr['avenue_libelle'] . ' Q/' . $adr['quartier_libelle'] . ' C/' . $adr['commune_libelle'] : 'Adresse non trouvée';
+
 				$result['nom_client_blue'] = $row_["nom_client_blue"];
 				$result['ref_fiche_controle'] =  $row_["ref_fiche_controle"];
-				$result['cvs_libelle'] =  $cvs->libelle;
 				$results[] = $result;
 			}
 		}
@@ -3816,9 +3881,42 @@ exit();*/
 
 			$result = "";
 			$num_line = 0;
-			$chef_name_cache = [];
-			$addr_cache = [];
-			foreach ($stmt as $row_) {
+
+			// ========================================================
+			// BATCH LOAD — éviter les N+1 queries dans la boucle
+			// ========================================================
+			$all_ctrl_rows = $stmt;
+			$all_ctrl_chef_ids = [];
+			$all_ctrl_adr_ids = [];
+			foreach ($all_ctrl_rows as $r) {
+				if (!empty($r['chef_equipe_control'])) $all_ctrl_chef_ids[] = $r['chef_equipe_control'];
+				if (!empty($r['adresse_id'])) $all_ctrl_adr_ids[] = $r['adresse_id'];
+			}
+
+			// Batch-load chefs d'équipe (1 seule requête)
+			$batch_ctrl_chefs = [];
+			if (!empty($all_ctrl_chef_ids)) {
+				$ph = implode(',', array_fill(0, count(array_unique($all_ctrl_chef_ids)), '?'));
+				$bc = $db->prepare("SELECT code_utilisateur, nom_complet FROM t_utilisateurs WHERE code_utilisateur IN ($ph)");
+				$bc->execute(array_unique($all_ctrl_chef_ids));
+				while ($cr = $bc->fetch(PDO::FETCH_ASSOC)) {
+					$batch_ctrl_chefs[$cr['code_utilisateur']] = $cr['nom_complet'];
+				}
+			}
+
+			// Batch-load adresses complètes (1 seule requête)
+			$batch_ctrl_adresses = [];
+			if (!empty($all_ctrl_adr_ids)) {
+				$ph = implode(',', array_fill(0, count(array_unique($all_ctrl_adr_ids)), '?'));
+				$ba = $db->prepare("SELECT adr.id, adr.numero, v.libelle AS ville_libelle, av.libelle AS avenue_libelle, q.libelle AS quartier_libelle, c.libelle AS commune_libelle FROM t_log_adresses adr LEFT JOIN t_param_adresse_entity v ON adr.ville_id = v.code LEFT JOIN t_param_adresse_entity q ON adr.quartier_id = q.code LEFT JOIN t_param_adresse_entity c ON adr.commune_id = c.code LEFT JOIN t_param_adresse_entity av ON adr.avenue = av.code WHERE adr.id IN ($ph)");
+				$ba->execute(array_unique($all_ctrl_adr_ids));
+				while ($ar = $ba->fetch(PDO::FETCH_ASSOC)) {
+					$batch_ctrl_adresses[$ar['id']] = $ar;
+				}
+			}
+			// ========================================================
+
+			foreach ($all_ctrl_rows as $row_) {
 				// while ($row_ = $stmt->fetch(PDO::FETCH_ASSOC)) {
 				$num_line++;
 
@@ -3873,12 +3971,8 @@ exit();*/
 					$result .= ' <span class="badge badge-success">Approuvé</span>';
 				}
 
-				// chef_equipe lookup - use pre-fetched cache if available, else single query
-				$chef_key = $row_['chef_equipe_control'];
-				if (!isset($chef_name_cache[$chef_key])) {
-					$chef_name_cache[$chef_key] = $utilisateur->GetUserDetailName($chef_key);
-				}
-				$chef_equipe = $chef_name_cache[$chef_key];
+				// chef_equipe depuis le batch (0 query)
+				$chef_equipe = $batch_ctrl_chefs[$row_['chef_equipe_control']] ?? '';
 				$result .= '</div>
 						<div class="font-medium text-primary control-date">' .  $row_["date_controle_fr"] . '</div>
 					</div>
@@ -3926,7 +4020,7 @@ exit();*/
 						<div class="text-dark">
 							Adresse
 						</div>
-						<div class="font-medium text-primary client-device">' . (isset($addr_cache[$row_["adresse_id"]]) ? $addr_cache[$row_["adresse_id"]] : ($addr_cache[$row_["adresse_id"]] = $commune->GetAdressInfoTexte($row_["adresse_id"]))) . '</div>
+						<div class="font-medium text-primary client-device">' . (($batch_ctrl_adresses[$row_["adresse_id"]] ?? null) ? $batch_ctrl_adresses[$row_["adresse_id"]]['ville_libelle'] . ', N° ' . ($batch_ctrl_adresses[$row_["adresse_id"]]['numero'] ?? '') . ' Av/' . $batch_ctrl_adresses[$row_["adresse_id"]]['avenue_libelle'] . ' Q/' . $batch_ctrl_adresses[$row_["adresse_id"]]['quartier_libelle'] . ' C/' . $batch_ctrl_adresses[$row_["adresse_id"]]['commune_libelle'] : 'Adresse non trouvée') . '</div>
 					</div>';
 
 				// if ($utilisateur->HasDroits("10_930")) {

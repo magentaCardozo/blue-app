@@ -5,14 +5,12 @@ $page_title = "Liste des installations";
 $home_page = "dashboard.php";
 $active = "lst_install";
 $parambase = "";
+header('Content-type: text/html;charset=utf-8');
 
-require_once 'vendor/autoload.php';
 require_once 'vendor/autoload.php';
 require_once 'loader/init.php';
 Autoloader::Load('classes');
 include_once 'core.php';
-
-header('Content-type: text/html;charset=utf-8');
 $database = new Database();
 $db = $database->getConnection();
 $Abonne = new Identification($db);
@@ -38,8 +36,6 @@ $type_client = new TypeClient($db);
 $yes_no = new PARAM_YesNo($db);
 $conformity_install = new PARAM_ConformityInstall($db);
 $tarif = new Tarif($db);
-//$statut_personne = new Param_Statut_Personne($db); 
-$type_usage = new Param_TypeUsage($db);
 $site = new Site($db);
 $province = new AdresseEntity($db);
 
@@ -380,15 +376,16 @@ body { background: linear-gradient(to left, rgb(86, 171, 47), rgb(168, 224, 99))
 													foreach ($chief_rows as $row_chief) {
 														echo "<option value=t_log_installation.chef_equipe='{$row_chief["code_utilisateur"]}'>Chef équipe - {$row_chief["nom_complet"]}</option>";
 													}
-												}													// Optimized: fetch all communes in one query instead of N+1 per province
-													$stmt_communes = $db->query("SELECT DISTINCT pa.code, pa.libelle FROM t_param_adresse_entity pa INNER JOIN t_param_adresse_entity parent ON pa.parent_id = parent.code WHERE parent.category_id = 4 ORDER BY pa.libelle");
-													while ($row_select = $stmt_communes->fetch(PDO::FETCH_ASSOC)) {
+												}
+													// Batch load all communes and CVS in 2 queries instead of N+1 per-province
+													$all_communes = $commune->getAllCommunesFlat();
+													$all_cvs = $commune->getAllCvsFlat();
+
+													foreach ($all_communes as $row_select) {
 														echo "<option value=e_commune.code='" . $row_select["code"] . "'>Commune - " . $row_select["libelle"] . "</option>";
 													}
 
-													// Optimized: fetch all CVS in one query instead of N+1 per province
-													$stmt_cvs = $db->query("SELECT DISTINCT pa.code, pa.libelle FROM t_param_adresse_entity pa INNER JOIN t_param_adresse_entity parent ON pa.parent_id = parent.code WHERE parent.category_id IN (5,6,7) ORDER BY pa.libelle");
-													while ($row_select = $stmt_cvs->fetch(PDO::FETCH_ASSOC)) {
+													foreach ($all_cvs as $row_select) {
 														echo "<option value=t_param_cvs.code='" . $row_select["code"] . "'>CVS - " . $row_select["libelle"] . "</option>";
 													}
 
@@ -4139,38 +4136,19 @@ function b64toBlob(b64Data, contentType, sliceSize) {
 				cache: false,
 				dataType: "json",
 				beforeSend: function() {
-					// $('.loader').html('<img src="loading.gif" alt="" width="24" height="24" style="padding-left: 400px; margin-top:10px;" >');
-					// $("#overlay").show();
-					$("#loader").attr("data-text", "Chargement des données en cours...");
-					$("#loader").addClass("is-active");
+					ShowLoader("Chargement des données en cours...");
 				},
 				success: function(result) {
 					if (result.count > 0) {
 						$("#results").html(result.data);
 						$("#record_count").html(result.count + " Elément(s)");
 					} else {
-						var need_reconnect = result.reconnect != null ? result.reconnect : false;
-						if (need_reconnect == true) {
-							Reconnect();
-						} else {
-							$("#record_count").html("0 Elément(s)");
-							$("#results").html('<div class="card alert-danger"><div class="card-body"><div role="alert" class="text-center"><h1 class="alert-heading">Aucune information trouvée</h1></div></div></div>');
-						}
+						$("#record_count").html("0 Elément(s)");
+						$("#results").html('<div class="card alert-danger"><div class="card-body"><div role="alert" class="text-center"><h1 class="alert-heading">Aucune information trouvée</h1></div></div></div>');
 					}
 				},
-				error: function(xhr, status, error) {
-    // Affiche l'erreur dans la console (très utile pour le dev)
-    console.error("Statut:", status);
-    console.error("Erreur:", error);
-    console.error("Réponse serveur:", xhr.responseText);
-
-    // Affiche l'erreur à l'utilisateur avec SweetAlert
-    swal("Erreur Ajax", 
-         "Statut: " + status + "\nErreur: " + error + "\nDétails serveur: " + xhr.responseText,
-         "error");
-},
 				complete: function() {
-					$("#loader").removeClass("is-active");
+					HideLoader();
 				}
 			});
 		}
