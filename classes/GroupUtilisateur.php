@@ -360,7 +360,7 @@ class GroupUtilisateur
 
 		// select query
 		$query = "SELECT  id_group,intitule,id_service   FROM " . $this->table_name . " WHERE
-                intitule Like :search_term ORDER BY intitule ASC LIMIT :from, :offset";
+                intitule Like :search_term OR id_group Like :search_term OR id_service IN (SELECT code FROM t_param_categorisation_groupe WHERE libelle Like :search_term) ORDER BY intitule ASC LIMIT :from, :offset";
 		$stmt = $this->conn->prepare($query);
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(':search_term', $search_term);
@@ -381,7 +381,7 @@ class GroupUtilisateur
                 COUNT(*) as total_rows
             FROM
                 " . $this->table_name . " WHERE
-                intitule LIKE :search_term ORDER BY intitule ASC ";
+                intitule LIKE :search_term OR id_group LIKE :search_term OR id_service IN (SELECT code FROM t_param_categorisation_groupe WHERE libelle LIKE :search_term) ";
 
 		// prepare query statement
 		$stmt = $this->conn->prepare($query);

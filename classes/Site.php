@@ -423,7 +423,7 @@ return $stmt;
 
     public function search($search_term, $from_record_num, $records_per_page)
     {
-        $query = "SELECT code_site,intitule_site,adresse_site,contact_site,province_id,annule,n_user_annule,date_annule  FROM " . $this->table_name  . " WHERE intitule_site LIKE :search_term  ORDER BY intitule_site ASC LIMIT :from, :offset";
+        $query = "SELECT code_site,intitule_site,adresse_site,contact_site,province_id,annule,n_user_annule,date_annule  FROM " . $this->table_name  . " WHERE (intitule_site LIKE :search_term OR adresse_site LIKE :search_term OR contact_site LIKE :search_term) ORDER BY intitule_site ASC LIMIT :from, :offset";
         $stmt = $this->conn->prepare($query);
         $search_term = "%{$search_term}%";
         $stmt->bindParam(':search_term', $search_term);
@@ -442,7 +442,7 @@ return $stmt;
     }
     public function countAll_BySearch($search_term)
     {
-        $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE intitule_site LIKE :search_term";
+        $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE (intitule_site LIKE :search_term OR adresse_site LIKE :search_term OR contact_site LIKE :search_term)";
         $stmt = $this->conn->prepare($query);
         $search_term = "%{$search_term}%";
         $stmt->bindParam(":search_term", $search_term);

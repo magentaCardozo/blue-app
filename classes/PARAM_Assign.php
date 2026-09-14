@@ -506,7 +506,16 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			and t_param_assignation.type_assignation=:type_assignation) 
 			and (num_compteur_actuel LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
 			LIKE :search_term or identite_client.phone_number 
-			LIKE :search_term) 
+			LIKE :search_term or e_avenue.libelle 
+			Like :search_term or e_quartier.libelle 
+			Like :search_term or e_commune.libelle 
+			Like :search_term or e_ville.libelle 
+			Like :search_term or t_main_data.p_a 
+			Like :search_term or t_main_data.id_ 
+			Like :search_term or t_log_adresses.numero 
+			Like :search_term or t_main_data.reference_appartement 
+			Like :search_term or t_param_assignation.id_assign 
+			Like :search_term) 
 			and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d') between :du and :au)  " . $user_filtre .
 			" ORDER BY t_param_assignation.datesys  DESC LIMIT :from, :offset";
 
@@ -584,6 +593,12 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 
+					Like :search_term or e_ville.libelle 
+					Like :search_term or t_main_data.p_a 
+					Like :search_term or t_main_data.id_ 
+					Like :search_term or t_log_adresses.numero 
+					Like :search_term or t_main_data.reference_appartement 
+					Like :search_term or t_param_assignation.id_assign 
 					Like :search_term)   " . $user_filtre .
 			" ORDER BY t_param_assignation.datesys  DESC LIMIT :from, :offset";
 
@@ -621,16 +636,21 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
 				where (t_main_data.ref_site_identif=:ref_site_identif 
 					and t_param_assignation.annule=0 
-					and t_param_assignation.type_assignation=:type_assignation) 
-					and (t_main_data.num_compteur_actuel 
-					LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
-					LIKE :search_term or identite_client.phone_number 
-					LIKE :search_term or  t_chef_equipe.nom_complet 
-					LIKE :search_term or  t_identificateur.nom_complet 
-					LIKE :search_term or e_avenue.libelle 
-					Like :search_term or e_quartier.libelle 
-					Like :search_term or e_commune.libelle 
-					Like :search_term)   " . $user_filtre . " ";
+					and t_param_assignation.type_assignation=:type_assignation)						and (t_main_data.num_compteur_actuel 
+						LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
+						LIKE :search_term or identite_client.phone_number 
+						LIKE :search_term or  t_chef_equipe.nom_complet 
+						LIKE :search_term or  t_identificateur.nom_complet 
+						LIKE :search_term or e_avenue.libelle 
+						Like :search_term or e_quartier.libelle 
+						Like :search_term or e_commune.libelle 
+						Like :search_term or e_ville.libelle 
+						Like :search_term or t_main_data.p_a 
+						Like :search_term or t_main_data.id_ 
+						Like :search_term or t_log_adresses.numero 
+						Like :search_term or t_main_data.reference_appartement 
+						Like :search_term or t_param_assignation.id_assign 
+						Like :search_term)   " . $user_filtre . " ";
 		$stmt = $this->connection->prepare($query);
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(":search_term", $search_term);
@@ -667,16 +687,21 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 				where (t_main_data.ref_site_identif=:ref_site_identif 
 					and t_param_assignation.annule=0 
 					and t_param_assignation.type_assignation=:type_assignation) 
-					and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d')  between :du and :au)  
-					and (t_main_data.num_compteur_actuel 
-					LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
-					LIKE :search_term or identite_client.phone_number 
-					LIKE :search_term or  t_chef_equipe.nom_complet 
-					LIKE :search_term or  t_identificateur.nom_complet 
-					LIKE :search_term or e_avenue.libelle 
-					Like :search_term or e_quartier.libelle 
-					Like :search_term or e_commune.libelle 
-					Like :search_term)   " . $user_filtre . " ";
+					and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d')  between :du and :au) 						and (t_main_data.num_compteur_actuel 
+						LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
+						LIKE :search_term or identite_client.phone_number 
+						LIKE :search_term or  t_chef_equipe.nom_complet 
+						LIKE :search_term or  t_identificateur.nom_complet 
+						LIKE :search_term or e_avenue.libelle 
+						Like :search_term or e_quartier.libelle 
+						Like :search_term or e_commune.libelle 
+						Like :search_term or e_ville.libelle 
+						Like :search_term or t_main_data.p_a 
+						Like :search_term or t_main_data.id_ 
+						Like :search_term or t_log_adresses.numero 
+						Like :search_term or t_main_data.reference_appartement 
+						Like :search_term or t_param_assignation.id_assign 
+						Like :search_term)   " . $user_filtre . " ";
 		$stmt = $this->connection->prepare($query);
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(":search_term", $search_term);

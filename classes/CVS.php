@@ -311,7 +311,7 @@ class CVS
   }
   public function search($search_term, $from_record_num, $records_per_page)
   {
-    $query = "SELECT code,libelle,annule,id_organisme,n_user_annule,motif_annulation,date_synchro,is_sync,code_province,id_site,date_annule,activated,id_commune  FROM " . $this->table_name  . " WHERE libelle LIKE :search_term  and annule=0 ORDER BY libelle ASC LIMIT :from, :offset";
+    $query = "SELECT code,libelle,annule,id_organisme,n_user_annule,motif_annulation,date_synchro,is_sync,code_province,id_site,date_annule,activated,id_commune  FROM " . $this->table_name  . " WHERE (libelle LIKE :search_term OR code LIKE :search_term OR id_commune IN (SELECT code FROM t_param_adresse_entity WHERE libelle LIKE :search_term) OR code_province IN (SELECT code FROM t_param_adresse_entity WHERE libelle LIKE :search_term))  and annule=0 ORDER BY libelle ASC LIMIT :from, :offset";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(':search_term', $search_term);
@@ -330,7 +330,7 @@ class CVS
   }
   public function countAll_BySearch($search_term)
   {
-    $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE libelle LIKE :search_term  and annule=0";
+    $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE (libelle LIKE :search_term OR code LIKE :search_term OR id_commune IN (SELECT code FROM t_param_adresse_entity WHERE libelle LIKE :search_term) OR code_province IN (SELECT code FROM t_param_adresse_entity WHERE libelle LIKE :search_term))  and annule=0";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(":search_term", $search_term);

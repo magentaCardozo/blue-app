@@ -300,7 +300,7 @@ $utilisateur->readOne();
                                     <div class="row">
                                         <div class="col-sm-3">
                                             <div class="input-group mt-2">
-                                                <input type="text" id="srch-term" name='s' class="form-control" placeholder="Recherche ..." required>
+                                                <input type="text" id="srch-term" name='s' class="form-control" placeholder="Recherche (PA, adresse, CVS, commentaire...)" required>
 
                                             </div>
                                         </div>

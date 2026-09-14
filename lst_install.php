@@ -312,7 +312,7 @@ body { background: linear-gradient(to left, rgb(86, 171, 47), rgb(168, 224, 99))
 								<div class="row">
 									<div class="col-sm-3">
 										<div class="input-group mt-2">
-											<input type="text" id="srch-term" name='s' class="form-control" placeholder="Recherche ..." required>
+											<input type="text" id="srch-term" name='s' class="form-control" placeholder="Recherche (nom, adresse, PA, compteur, installateur...)" required>
 
 										</div>
 									</div>

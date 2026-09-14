@@ -216,7 +216,7 @@ class Organisme
   }
   public function search($search_term, $from_record_num, $records_per_page)
   {
-    $query = "SELECT ref_organisme,denomination,adresse,contact_organisme,ref_org_principal,phone,annule_,type_,signature_id,is_sync  FROM " . $this->table_name  . " WHERE denomination LIKE :search_term  ORDER BY denomination ASC LIMIT :from, :offset";
+    $query = "SELECT ref_organisme,denomination,adresse,contact_organisme,ref_org_principal,phone,annule_,type_,signature_id,is_sync  FROM " . $this->table_name  . " WHERE (denomination LIKE :search_term OR adresse LIKE :search_term OR contact_organisme LIKE :search_term OR phone LIKE :search_term) ORDER BY denomination ASC LIMIT :from, :offset";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(':search_term', $search_term);
@@ -235,7 +235,7 @@ class Organisme
   }
   public function countAll_BySearch($search_term)
   {
-    $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE denomination LIKE :search_term";
+    $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE (denomination LIKE :search_term OR adresse LIKE :search_term OR contact_organisme LIKE :search_term OR phone LIKE :search_term)";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(":search_term", $search_term);

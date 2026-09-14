@@ -145,7 +145,7 @@ class Materiels
   }
   public function search($search_term, $from_record_num, $records_per_page)
   {
-    $query = "SELECT ref_produit,designation,annule,id_categorie,unite_de_mesure,description,motif_annulation,date_annule,n_user_annule,is_sync  FROM " . $this->table_name  . " WHERE designation LIKE :search_term  ORDER BY designation ASC LIMIT :from, :offset";
+    $query = "SELECT ref_produit,designation,annule,id_categorie,unite_de_mesure,description,motif_annulation,date_annule,n_user_annule,is_sync  FROM " . $this->table_name  . " WHERE (designation LIKE :search_term OR description LIKE :search_term OR ref_produit LIKE :search_term) ORDER BY designation ASC LIMIT :from, :offset";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(':search_term', $search_term);
@@ -164,7 +164,7 @@ class Materiels
   }
   public function countAll_BySearch($search_term)
   {
-    $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE designation LIKE :search_term" . " and  t_param_liste_materiels.annule='0' ";
+    $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE (designation LIKE :search_term OR description LIKE :search_term OR ref_produit LIKE :search_term)" . " and  t_param_liste_materiels.annule='0' ";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(":search_term", $search_term);

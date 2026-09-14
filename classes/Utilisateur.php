@@ -669,7 +669,7 @@ INNER JOIN t_utilisateurs ON t_utilisateurs.id_group = ts_group_user.id_group";
 
 		// select query
 		$query = "SELECT t_utilisateurs.code_utilisateur,t_utilisateurs.nom_utilisateur,t_utilisateurs.nom_complet,t_utilisateurs.id_group,t_utilisateurs.activated,t_utilisateurs.site_id,ts_group_user.intitule,t_utilisateurs.phone_user,t_utilisateurs.email_user,t_utilisateurs.chef_equipe_id,t_utilisateurs.id_organisme,t_utilisateurs.is_chief,t_param_organisme.denomination,t_param_site_production.intitule_site  FROM ts_group_user INNER JOIN t_utilisateurs ON t_utilisateurs.id_group = ts_group_user.id_group INNER JOIN t_param_organisme ON t_param_organisme.ref_organisme = t_utilisateurs.id_organisme INNER JOIN t_param_site_production ON t_param_site_production.code_site = t_utilisateurs.site_id WHERE
-                t_utilisateurs.nom_utilisateur LIKE :search_term OR t_utilisateurs.nom_complet LIKE :search_term OR ts_group_user.intitule LIKE :search_term OR t_param_site_production.intitule_site LIKE :search_term OR t_param_organisme.denomination LIKE :search_term ORDER BY t_utilisateurs.nom_utilisateur ASC LIMIT :from, :offset";
+                t_utilisateurs.nom_utilisateur LIKE :search_term OR t_utilisateurs.nom_complet LIKE :search_term OR ts_group_user.intitule LIKE :search_term OR t_param_site_production.intitule_site LIKE :search_term OR t_param_organisme.denomination LIKE :search_term OR t_utilisateurs.phone_user LIKE :search_term OR t_utilisateurs.email_user LIKE :search_term OR t_utilisateurs.code_utilisateur LIKE :search_term ORDER BY t_utilisateurs.nom_utilisateur ASC LIMIT :from, :offset";
 		$stmt = $this->conn->prepare($query);
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(':search_term', $search_term);
@@ -688,7 +688,7 @@ INNER JOIN t_utilisateurs ON t_utilisateurs.id_group = ts_group_user.id_group";
 		// select query
 		$query = "SELECT
                 COUNT(*) as total_rows
-            FROM ts_group_user INNER JOIN t_utilisateurs ON t_utilisateurs.id_group = ts_group_user.id_group INNER JOIN t_param_organisme ON t_param_organisme.ref_organisme = t_utilisateurs.id_organisme INNER JOIN t_param_site_production ON t_param_site_production.code_site = t_utilisateurs.site_id WHERE t_utilisateurs.nom_utilisateur LIKE :search_term OR t_utilisateurs.nom_complet LIKE :search_term OR ts_group_user.intitule LIKE :search_term OR t_param_site_production.intitule_site LIKE :search_term OR t_param_organisme.denomination LIKE :search_term";
+            FROM ts_group_user INNER JOIN t_utilisateurs ON t_utilisateurs.id_group = ts_group_user.id_group INNER JOIN t_param_organisme ON t_param_organisme.ref_organisme = t_utilisateurs.id_organisme INNER JOIN t_param_site_production ON t_param_site_production.code_site = t_utilisateurs.site_id WHERE (t_utilisateurs.nom_utilisateur LIKE :search_term OR t_utilisateurs.nom_complet LIKE :search_term OR ts_group_user.intitule LIKE :search_term OR t_param_site_production.intitule_site LIKE :search_term OR t_param_organisme.denomination LIKE :search_term OR t_utilisateurs.phone_user LIKE :search_term OR t_utilisateurs.email_user LIKE :search_term OR t_utilisateurs.code_utilisateur LIKE :search_term)";
 		$stmt = $this->conn->prepare($query);
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(':search_term', $search_term);

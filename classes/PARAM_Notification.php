@@ -452,7 +452,7 @@ INNER JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_
 INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.`code` 
 INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
 INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.`code`  
-  WHERE (t_param_notification_log.num_compteur LIKE :search_term OR t_param_notification_log.nom_client LIKE :search_term) and t_param_notification_log.type_notification='" . $this->type_notification . "' " . $user_filtre . " and t_param_notification_log.id_site=:id_site ORDER BY t_param_notification_log.datesys " . $this->sort_type . "  LIMIT :from, :offset";
+  WHERE (t_param_notification_log.num_compteur LIKE :search_term OR t_param_notification_log.nom_client LIKE :search_term OR t_param_notification_log.numero_ticket LIKE :search_term OR t_param_notification_log.ref_identif LIKE :search_term OR t_main_data.p_a LIKE :search_term OR t_main_data.num_compteur_actuel LIKE :search_term OR t_log_adresses.numero LIKE :search_term OR e_avenue.libelle LIKE :search_term OR e_quartier.libelle LIKE :search_term OR e_commune.libelle LIKE :search_term OR e_ville.libelle LIKE :search_term OR t_param_cvs.libelle LIKE :search_term OR t_param_notification_log.commentaire LIKE :search_term) and t_param_notification_log.type_notification='" . $this->type_notification . "' " . $user_filtre . " and t_param_notification_log.id_site=:id_site ORDER BY t_param_notification_log.datesys " . $this->sort_type . "  LIMIT :from, :offset";
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(':id_site', $user_context->site_id);
@@ -499,7 +499,7 @@ INNER JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_
 INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.`code` 
 INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
 INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.`code` 
- WHERE t_param_notification_log.num_compteur LIKE :search_term and t_param_notification_log.type_notification='" . $this->type_notification . "'  and t_param_notification_log.id_site=:id_site  " . $user_filtre;
+ WHERE (t_param_notification_log.num_compteur LIKE :search_term OR t_param_notification_log.nom_client LIKE :search_term OR t_param_notification_log.numero_ticket LIKE :search_term OR t_param_notification_log.ref_identif LIKE :search_term OR t_main_data.p_a LIKE :search_term OR t_main_data.num_compteur_actuel LIKE :search_term OR t_log_adresses.numero LIKE :search_term OR e_avenue.libelle LIKE :search_term OR e_quartier.libelle LIKE :search_term OR e_commune.libelle LIKE :search_term OR e_ville.libelle LIKE :search_term OR t_param_cvs.libelle LIKE :search_term OR t_param_notification_log.commentaire LIKE :search_term) and t_param_notification_log.type_notification='" . $this->type_notification . "'  and t_param_notification_log.id_site=:id_site  " . $user_filtre;
     $stmt = $this->connection->prepare($query);
     $search_term = "%{$search_term}%";
     $stmt->bindParam(":search_term", $search_term);

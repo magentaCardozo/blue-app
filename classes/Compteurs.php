@@ -413,7 +413,7 @@ class Compteurs
     }
     public function search($search_term, $from_record_num, $records_per_page)
     {
-        $query = "SELECT ref_produit_series,annule,code_user_create,serial_number,sts_serial_number,order_number,manufacturer_ref,site_id_affectation,ref_sous_traitant,nom_sous_traitant,deja_affected,date_affectation_first_afectation,n_user_annule,date_annule,motif_annulation,statut_compteur,is_sync,date_desaffectation,motif_desaffectation,annee_fabrication,date_actuelle_affectation  FROM " . $this->table_name  . " WHERE serial_number LIKE :search_term  ORDER BY serial_number ASC LIMIT :from, :offset";
+        $query = "SELECT ref_produit_series,annule,code_user_create,serial_number,sts_serial_number,order_number,manufacturer_ref,site_id_affectation,ref_sous_traitant,nom_sous_traitant,deja_affected,date_affectation_first_afectation,n_user_annule,date_annule,motif_annulation,statut_compteur,is_sync,date_desaffectation,motif_desaffectation,annee_fabrication,date_actuelle_affectation  FROM " . $this->table_name  . " WHERE (serial_number LIKE :search_term OR order_number LIKE :search_term OR manufacturer_ref LIKE :search_term OR annee_fabrication LIKE :search_term) ORDER BY serial_number ASC LIMIT :from, :offset";
         $stmt = $this->connection->prepare($query);
         $search_term = "%{$search_term}%";
         $stmt->bindParam(':search_term', $search_term);
@@ -432,7 +432,7 @@ class Compteurs
     }
     public function countAll_BySearch($search_term)
     {
-        $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE serial_number LIKE :search_term";
+        $query = "SELECT COUNT(*) as total_rows FROM  " . $this->table_name . " WHERE (serial_number LIKE :search_term OR order_number LIKE :search_term OR manufacturer_ref LIKE :search_term OR annee_fabrication LIKE :search_term)";
         $stmt = $this->connection->prepare($query);
         $search_term = "%{$search_term}%";
         $stmt->bindParam(":search_term", $search_term);

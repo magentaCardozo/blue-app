@@ -328,7 +328,7 @@ $search_value = isset($search_term) ? "value='{$search_term}'" : "";
                                                     <?php echo $total_rows . ' Elément(s)'; ?></div>
                                                 <form method="get" role='search' id="frm_search_advanced">
                                                     <div class="input-group mt-1">
-                                                        <input type="text" id="s" name="s" class="form-control" placeholder="Recherche..." value="<?php echo $search_term; ?>">
+                                                        <input type="text" id="s" name="s" class="form-control" placeholder="Recherche (nom, adresse, compteur...)" value="<?php echo $search_term; ?>">
                                                         <button type="submit" name="search" id="btn_search" class="btn btn-primary"><i class="fa fa-search"></i>
                                                         </button>
                                                     </div>
