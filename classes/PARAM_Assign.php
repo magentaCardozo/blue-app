@@ -477,6 +477,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			t_main_data.num_compteur_actuel,
 			t_param_assignation.id_assign,
 			t_param_assignation.id_organe,
+			t_param_assignation.id_controleur_quality,
 			t_param_assignation.datesys,
 			DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S')  as date_sys_fr,
 			t_param_assignation.statut_,
