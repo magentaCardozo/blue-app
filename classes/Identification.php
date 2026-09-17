@@ -1551,96 +1551,369 @@ $query = "select  id,quartier_id,commune_id,ville_id,province_id,numero,avenue,i
         echo json_encode($result);
     }
 
+public function GetCompteurAdresseForControl($num_compteur, $user_context)
+{
+    $result = array(
+        'items' => array(),
+        'error' => 0,
+        'deja_assigner_count' => 0
+    );
 
-    public function GetCompteurAdresseForControl($num_compteur, $user_context)
-    {
-        //$user_filtre = $this->GetUserFilter($user_context);
-        $result = array();
-        $item = array();
-        // $search_term=trim($search_term);
-        $items_deja_asign = array();
-        $result['items'] = array();
-        // $user_filtre="";
+    $items_deja_asign = array();
 
-        // $user_filtre .= $this->GetUserFilterSearch($user_context);
+    $num_compteur = trim($num_compteur);
 
-        $adress_item = new  AdresseEntity($this->connection);
-        // $query = "";
-        $query = "SELECT t_main_data.id_,coalesce((datediff(now(),t_main_data.date_dernier_controle)),'-') AS jour_passer_dernier_controle,coalesce(DATE_FORMAT(t_main_data.date_dernier_controle,'%d/%m/%Y %H:%i:%S'),'-')  as date_dernier_controle_fr,
-            t_main_data.gps_longitude,
-            t_main_data.gps_latitude,
-            t_main_data.p_a,t_main_data.reference_appartement,
-            Concat(coalesce(identite_client.nom,' '),' ',coalesce(identite_client.postnom,' '),' ',coalesce(identite_client.prenom,'')) as nom_client_blue, coalesce(identite_client.phone_number,'-') as phone_client_blue,
-            t_main_data.num_compteur_actuel,
-            t_main_data.adresse_id,
-            t_main_data.cvs_id, 
-            t_main_data.etat_compteur,
-            t_param_cvs.libelle FROM t_main_data INNER JOIN t_param_cvs ON t_param_cvs.`code` = t_main_data.cvs_id INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id INNER JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.`code` INNER JOIN t_param_adresse_entity AS e_commune  ON t_log_adresses.commune_id = e_commune.`code` 
-            INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.`code` 
-            INNER JOIN t_utilisateurs ON t_main_data.identificateur = t_utilisateurs.code_utilisateur INNER JOIN t_utilisateurs as t_chef_equipe ON t_main_data.chef_equipe = t_chef_equipe.code_utilisateur  INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme 
-            INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.`code`
-            INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id 
-            WHERE  t_main_data.annule=" . $this->is_valid . " and t_main_data.est_installer='1' and t_main_data.num_compteur_actuel=:num_compteur_";
-
-        $stmt = $this->connection->prepare($query);
+    $adress_item = new AdresseEntity($this->connection);
 
 
-        $query_avoid = "select id_fiche_identif from t_param_assignation where id_fiche_identif=:fiche_id and is_valid='1'";
-        $stmt_avoid = $this->connection->prepare($query_avoid);
+    /*
+     * ============================================================
+     * 1. RECHERCHE DU COMPTEUR DANS t_main_data
+     * ============================================================
+     *
+     * Ici, le compteur est le compteur ACTUEL de la fiche.
+     * L'adresse provient donc de t_main_data.adresse_id.
+     */
 
-        // if($search_term!=""){ 
-        // $search_term = "{$search_term}";
-        $stmt->bindParam(':num_compteur_', $num_compteur);
+    $query_main = "
+        SELECT
+            md.id_,
 
-        // if($csv_id != ""){
-        // $stmt->bindParam(':cvs_id', $csv_id);
-        // }
-        // $stmt->bindParam(':from', $from_record_num, PDO::PARAM_INT);
-        // $stmt->bindParam(':offset', $records_per_page, PDO::PARAM_INT);
-        // $stmt->bindValue(":ref_site_identif", $user_context->site_id);
+            COALESCE(
+                DATEDIFF(NOW(), md.date_dernier_controle),
+                '-'
+            ) AS jour_passer_dernier_controle,
 
-        // echo ($query);
-        // exit;
-        $stmt->execute();
-        $result["error"] = 0;
-        $row_ =  $stmt->fetchAll(PDO::FETCH_ASSOC);
+            COALESCE(
+                DATE_FORMAT(
+                    md.date_dernier_controle,
+                    '%d/%m/%Y %H:%i:%S'
+                ),
+                '-'
+            ) AS date_dernier_controle_fr,
 
-        // $stmt->execute();
-        // $result["error"] = 0;
-        // $row_ = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            md.gps_longitude,
+            md.gps_latitude,
+            md.p_a,
+            md.reference_appartement,
 
-        if (count($row_) > 0) {
-            // foreach ($row_ as $vl) {
-            $vl = $row_[0];
-            //EVITER LES COMPTEURS DEJA ASSIGNES
+            CONCAT(
+                COALESCE(ic.nom, ' '),
+                ' ',
+                COALESCE(ic.postnom, ' '),
+                ' ',
+                COALESCE(ic.prenom, '')
+            ) AS nom_client_blue,
 
-            //EVITER LES COMPTEURS DEJA ASSIGNES	
-            $stmt_avoid->bindValue(":fiche_id", $vl['id_']);
-            $stmt_avoid->execute();
-            $row_avoid = $stmt_avoid->fetch(PDO::FETCH_ASSOC);
-            if (!$row_avoid) {
-                $item['data'] = $vl;
-                $item["adresseTexte"] = $adress_item->GetAdressInfoTexte($vl["adresse_id"]);
-                $result['items'][] = $item;
-            } else {
-                $items_deja_asign[] = $vl['num_compteur_actuel'];
-                $result["error"] = 1;
-                $result["message"] = "a déjà une assignation valide";
-                $result["error_type"] = "warning";
-            }
+            COALESCE(
+                ic.phone_number,
+                '-'
+            ) AS phone_client_blue,
+
+            md.num_compteur_actuel,
+            md.adresse_id,
+            md.cvs_id,
+            md.etat_compteur,
+
+            pc.libelle
+
+        FROM t_main_data AS md
+
+        INNER JOIN t_param_cvs AS pc
+            ON pc.`code` = md.cvs_id
+
+        INNER JOIN t_log_adresses AS la
+            ON md.adresse_id = la.id
+
+        INNER JOIN t_param_adresse_entity AS e_quartier
+            ON la.quartier_id = e_quartier.`code`
+
+        INNER JOIN t_param_adresse_entity AS e_commune
+            ON la.commune_id = e_commune.`code`
+
+        INNER JOIN t_param_adresse_entity AS e_ville
+            ON la.ville_id = e_ville.`code`
+
+        INNER JOIN t_utilisateurs AS u
+            ON md.identificateur = u.code_utilisateur
+
+        INNER JOIN t_utilisateurs AS chef
+            ON md.chef_equipe = chef.code_utilisateur
+
+        INNER JOIN t_param_organisme AS po
+            ON md.id_equipe_identification = po.ref_organisme
+
+        INNER JOIN t_param_adresse_entity AS e_avenue
+            ON la.avenue = e_avenue.`code`
+
+        INNER JOIN t_param_identite AS ic
+            ON md.client_id = ic.id
+
+        WHERE
+            md.annule = :is_valid
+            AND md.est_installer = 1
+            AND md.num_compteur_actuel = :num_compteur
+
+        LIMIT 1
+    ";
+
+    $stmt_main = $this->connection->prepare($query_main);
+
+    $stmt_main->bindValue(
+        ':is_valid',
+        $this->is_valid,
+        PDO::PARAM_INT
+    );
+
+    $stmt_main->bindValue(
+        ':num_compteur',
+        $num_compteur,
+        PDO::PARAM_STR
+    );
+
+    $stmt_main->execute();
+
+    $vl = $stmt_main->fetch(PDO::FETCH_ASSOC);
 
 
-            /*
-					$item['data']= $vl;
-					$item["adresseTexte"] = $adress_item->GetAdressInfoTexte($vl["adresse_id"]);
-					$result['items'][]= $item;*/
-            // }
-        } else {
-            $result["error"] = 1;
-            $result["message"] = "Non trouvé";
-            $result["error_type"] = "error";
+    /*
+     * ============================================================
+     * 2. COMPTEUR NON TROUVÉ DANS t_main_data
+     *
+     *    → Recherche dans t_log_installation
+     * ============================================================
+     *
+     * IMPORTANT :
+     *
+     * L'adresse utilisée ici est :
+     *
+     *      li.adresse_client_install
+     *
+     * et NON :
+     *
+     *      md.adresse_id
+     *
+     * Car le compteur peut avoir été installé à une nouvelle
+     * adresse différente de celle de la fiche d'identification.
+     */
+
+    $is_installation = false;
+
+    if (!$vl) {
+
+        $query_installation = "
+            SELECT
+                li.id_install,
+
+                li.ref_identific,
+
+                li.numero_compteur AS num_compteur_actuel,
+
+                li.gps_longitude,
+                li.gps_latitude,
+                li.p_a,
+
+                li.nom_client_install,
+                li.adresse_client_install,
+                li.pa_client_install,
+
+                li.date_installation,
+                li.statut_installation,
+                li.approbation_installation,
+
+                li.compteur_desaffecte,
+                li.etat_compteur_reaffected,
+
+                li.type_installation,
+
+                li.commentaire_installateur,
+                li.commenteur_controle_blue,
+
+                li.installateur,
+                li.id_organisme,
+                li.chef_equipe,
+
+                li.ref_site_install
+
+            FROM t_log_installation AS li
+
+            WHERE
+                li.annule = :is_valid
+                AND li.numero_compteur = :num_compteur
+                AND li.is_draft_install = 0
+
+            ORDER BY
+                li.date_installation DESC
+
+            LIMIT 1
+        ";
+
+        $stmt_installation = $this->connection->prepare(
+            $query_installation
+        );
+
+        $stmt_installation->bindValue(
+            ':is_valid',
+            $this->is_valid,
+            PDO::PARAM_INT
+        );
+
+        $stmt_installation->bindValue(
+            ':num_compteur',
+            $num_compteur,
+            PDO::PARAM_STR
+        );
+
+        $stmt_installation->execute();
+
+        $vl = $stmt_installation->fetch(PDO::FETCH_ASSOC);
+
+        if ($vl) {
+            $is_installation = true;
         }
-        $result["deja_assigner_count"] = count($items_deja_asign);
+    }
+
+
+    /*
+     * ============================================================
+     * 3. AUCUN COMPTEUR TROUVÉ
+     * ============================================================
+     */
+
+    if (!$vl) {
+
+        $result["error"] = 1;
+        $result["message"] = "Non trouvé";
+        $result["error_type"] = "error";
+
         return $result;
     }
+
+
+    /*
+     * ============================================================
+     * 4. VÉRIFICATION DE L'ASSIGNATION
+     * ============================================================
+     *
+     * On vérifie toujours l'id de la fiche d'identification
+     * lorsqu'elle existe.
+     *
+     * Dans le cas t_main_data :
+     *
+     *      id_ = fiche d'identification
+     *
+     * Dans le cas t_log_installation :
+     *
+     *      ref_identific = fiche d'identification
+     *
+     * ============================================================
+     */
+
+    $fiche_id = $vl['id_'] ?? $vl['ref_identific'] ?? null;
+
+    $row_avoid = false;
+
+    if ($fiche_id !== null && $fiche_id !== '') {
+
+        $query_avoid = "
+            SELECT id_fiche_identif
+            FROM t_param_assignation
+            WHERE
+                id_fiche_identif = :fiche_id
+                AND is_valid = '1'
+            LIMIT 1
+        ";
+
+        $stmt_avoid = $this->connection->prepare($query_avoid);
+
+        $stmt_avoid->bindValue(
+            ':fiche_id',
+            $fiche_id,
+            PDO::PARAM_STR
+        );
+
+        $stmt_avoid->execute();
+
+        $row_avoid = $stmt_avoid->fetch(PDO::FETCH_ASSOC);
+    }
+
+
+    /*
+     * ============================================================
+     * 5. COMPTEUR DÉJÀ ASSIGNÉ
+     * ============================================================
+     */
+
+    if ($row_avoid) {
+
+        $items_deja_asign[] = $vl['num_compteur_actuel'];
+
+        $result["error"] = 1;
+        $result["message"] = "a déjà une assignation valide";
+        $result["error_type"] = "warning";
+        $result["deja_assigner_count"] = count($items_deja_asign);
+
+        return $result;
+    }
+
+
+    /*
+     * ============================================================
+     * 6. CONSTRUCTION DU RÉSULTAT
+     * ============================================================
+     */
+
+    $item = array();
+
+    $item['data'] = $vl;
+
+
+    /*
+     * ------------------------------------------------------------
+     * Adresse
+     * ------------------------------------------------------------
+     *
+     * Cas 1 :
+     * compteur trouvé dans t_main_data
+     *
+     *     → adresse de la fiche d'identification
+     *
+     * Cas 2 :
+     * compteur trouvé dans t_log_installation
+     *
+     *     → adresse réelle de l'installation
+     */
+
+    if ($is_installation) {
+
+        /*
+         * Adresse de la fiche d'installation.
+         */
+        $item['adresseTexte'] = $vl['adresse_client_install'] ?? '';
+
+    } else {
+
+        /*
+         * Adresse de la fiche t_main_data.
+         */
+        $item['adresseTexte'] =
+            $adress_item->GetAdressInfoTexte(
+                $vl['adresse_id']
+            );
+    }
+
+
+    /*
+     * ============================================================
+     * 7. AJOUT DU COMPTEUR AU RÉSULTAT
+     * ============================================================
+     */
+
+    $result['items'][] = $item;
+
+    $result["deja_assigner_count"] = count($items_deja_asign);
+
+    return $result;
+}
+
 }
