@@ -1019,112 +1019,110 @@ public function search($search_term, $from_record_num, $records_per_page, $user_
 
  $query = "
 SELECT
-    li.*,
-    COALESCE(md.p_a, li.p_a) AS p_a,
+    t_log_installation.*,
+    COALESCE(t_main_data.p_a, t_log_installation.p_a) AS p_a,
 
-    DATE_FORMAT(li.date_debut_installation,'%d/%m/%Y %H:%i:%S') AS date_debut_installation_fr,
-    DATE_FORMAT(li.date_fin_installation,'%d/%m/%Y %H:%i:%S') AS date_fin_installation_fr,
+    DATE_FORMAT(t_log_installation.date_debut_installation,'%d/%m/%Y %H:%i:%S') AS date_debut_installation_fr,
+    DATE_FORMAT(t_log_installation.date_fin_installation,'%d/%m/%Y %H:%i:%S') AS date_fin_installation_fr,
 
-    md.num_compteur_actuel,
-    md.adresse_id,
-    md.photo_pa_avant,
-    md.cvs_id,
-    md.section_cable,
-    md.nbre_branchement,
-    md.is_draft,
+    t_main_data.num_compteur_actuel,
+    t_main_data.adresse_id,
+    t_main_data.photo_pa_avant,
+    t_main_data.cvs_id,
+    t_main_data.section_cable,
+    t_main_data.nbre_branchement,
+    t_main_data.is_draft,
 
     CONCAT(
-        COALESCE(ic.nom,''),
+        COALESCE(identite_client.nom,''),
         ' ',
-        COALESCE(ic.postnom,''),
+        COALESCE(identite_client.postnom,''),
         ' ',
-        COALESCE(ic.prenom,'')
+        COALESCE(identite_client.prenom,'')
     ) AS nom_client_blue,
 
-    COALESCE(ic.phone_number,'-') AS phone_client_blue,
+    COALESCE(identite_client.phone_number,'-') AS phone_client_blue,
 
-    cvs.libelle,
+    t_param_cvs.libelle,
 
-    quartier.libelle AS quartier,
-    commune.libelle AS commune,
+    e_quartier.libelle AS quartier,
+    e_commune.libelle AS commune,
 
     u.nom_utilisateur,
     u.nom_complet,
 
     chef.nom_complet AS nom_chef_equipe,
 
-    org.denomination
+    t_param_organisme.denomination
 
 
-FROM t_log_installation li
+FROM t_log_installation
 
-STRAIGHT_JOIN t_main_data md
-    ON li.ref_identific = md.id_
+STRAIGHT_JOIN t_main_data
+    ON t_log_installation.ref_identific = t_main_data.id_
 
-INNER JOIN t_param_cvs cvs
-    ON cvs.code = md.cvs_id
+INNER JOIN t_param_cvs
+    ON t_param_cvs.code = t_main_data.cvs_id
 
-INNER JOIN t_log_adresses adr
-    ON md.adresse_id = adr.id
+INNER JOIN t_log_adresses
+    ON t_main_data.adresse_id = t_log_adresses.id
 
 
-INNER JOIN t_param_adresse_entity quartier
-    ON adr.quartier_id = quartier.code
+INNER JOIN t_param_adresse_entity AS e_quartier
+    ON t_log_adresses.quartier_id = e_quartier.code
 
-INNER JOIN t_param_adresse_entity commune
-    ON adr.commune_id = commune.code
+INNER JOIN t_param_adresse_entity AS e_commune
+    ON t_log_adresses.commune_id = e_commune.code
 
 
 LEFT JOIN t_utilisateurs u
-    ON li.code_installateur = u.code_utilisateur
+    ON t_log_installation.code_installateur = u.code_utilisateur
 
 
 LEFT JOIN t_utilisateurs chef
-    ON li.chef_equipe = chef.code_utilisateur
+    ON t_log_installation.chef_equipe = chef.code_utilisateurINNER JOIN t_param_organisme
+    ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme
 
 
-INNER JOIN t_param_organisme org
-    ON md.id_equipe_identification = org.ref_organisme
+
+INNER JOIN t_param_identite AS identite_client
+    ON t_main_data.client_id = identite_client.id
 
 
-INNER JOIN t_param_identite ic
-    ON md.client_id = ic.id
-
-
-LEFT JOIN t_param_adresse_entity avenue
-    ON adr.avenue = avenue.code
+LEFT JOIN t_param_adresse_entity AS e_avenue
+    ON t_log_adresses.avenue = e_avenue.code
 
 
 WHERE
 (
     CONCAT(
-        COALESCE(ic.nom,''),
+        COALESCE(identite_client.nom,''),
         ' ',
-        COALESCE(ic.postnom,''),
+        COALESCE(identite_client.postnom,''),
         ' ',
-        COALESCE(ic.prenom,'')
+        COALESCE(identite_client.prenom,'')
     ) LIKE :search_term
 
-    OR md.id_ LIKE :search_term
-    OR li.id_install LIKE :search_term
+    OR t_main_data.id_ LIKE :search_term
+    OR t_log_installation.id_install LIKE :search_term
     OR u.nom_complet LIKE :search_term
     OR chef.nom_complet LIKE :search_term
-    OR li.numero_compteur LIKE :search_term
-    OR ic.phone_number LIKE :search_term
-    OR DATE_FORMAT(li.date_fin_installation,'%d/%m/%Y') LIKE :search_term
-    OR avenue.libelle LIKE :search_term
-    OR commune.libelle LIKE :search_term
-    OR quartier.libelle LIKE :search_term
-    OR li.motif_desaffectation LIKE :search_term
+    OR t_log_installation.numero_compteur LIKE :search_term
+    OR identite_client.phone_number LIKE :search_term
+    OR DATE_FORMAT(t_log_installation.date_fin_installation,'%d/%m/%Y') LIKE :search_term
+    OR e_avenue.libelle LIKE :search_term
+    OR e_commune.libelle LIKE :search_term
+    OR e_quartier.libelle LIKE :search_term
+    OR t_log_installation.motif_desaffectation LIKE :search_term
 )
 
-AND li.annule = 0
+AND t_log_installation.annule = 0
 
 ".$filtre."
 
 ".$user_filtre."
 
-ORDER BY li.date_fin_installation DESC
+ORDER BY t_log_installation.date_fin_installation DESC
 
 LIMIT :from,:offset
 ";
@@ -1148,32 +1146,37 @@ LIMIT :from,:offset
     $query = "
     SELECT COUNT(*) as total_rows
 
-    FROM t_log_installation li
+    FROM t_log_installation
 
-    STRAIGHT_JOIN t_main_data md
-        ON li.ref_identific = md.id_
+    STRAIGHT_JOIN t_main_data
+        ON t_log_installation.ref_identific = t_main_data.id_
 
-    INNER JOIN t_param_identite AS identite_client 
-        ON md.client_id = identite_client.id
+    INNER JOIN t_param_cvs
+        ON t_param_cvs.code = t_main_data.cvs_id
 
-    LEFT JOIN t_utilisateurs 
-        ON li.code_installateur = t_utilisateurs.code_utilisateur
+    INNER JOIN t_log_adresses
+        ON t_main_data.adresse_id = t_log_adresses.id
 
-    LEFT JOIN t_utilisateurs AS t_chef_equipe 
-        ON li.chef_equipe = t_chef_equipe.code_utilisateur
-
-    LEFT JOIN t_log_adresses 
-        ON md.adresse_id = t_log_adresses.id
-
-    LEFT JOIN t_param_adresse_entity AS e_avenue 
-        ON t_log_adresses.avenue = e_avenue.code
-
-    LEFT JOIN t_param_adresse_entity AS e_commune  
-        ON t_log_adresses.commune_id = e_commune.code
-
-    LEFT JOIN t_param_adresse_entity AS e_quartier 
+    INNER JOIN t_param_adresse_entity AS e_quartier
         ON t_log_adresses.quartier_id = e_quartier.code
 
+    INNER JOIN t_param_adresse_entity AS e_commune
+        ON t_log_adresses.commune_id = e_commune.code
+
+    LEFT JOIN t_utilisateurs
+        ON t_log_installation.code_installateur = t_utilisateurs.code_utilisateur
+
+    LEFT JOIN t_utilisateurs AS t_chef_equipe
+        ON t_log_installation.chef_equipe = t_chef_equipe.code_utilisateur
+
+    INNER JOIN t_param_organisme
+        ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme
+
+    LEFT JOIN t_param_adresse_entity AS e_avenue
+        ON t_log_adresses.avenue = e_avenue.code
+
+    INNER JOIN t_param_identite AS identite_client
+        ON t_main_data.client_id = identite_client.id
 
     WHERE
     (
@@ -1185,33 +1188,31 @@ LIMIT :from,:offset
             COALESCE(identite_client.prenom,'')
         ) LIKE :search_term
 
-        OR md.id_ LIKE :search_term
+        OR t_main_data.id_ LIKE :search_term
 
-        OR li.id_install LIKE :search_term
+        OR t_log_installation.id_install LIKE :search_term
 
         OR t_utilisateurs.nom_complet LIKE :search_term
 
         OR t_chef_equipe.nom_complet LIKE :search_term
 
-        OR li.numero_compteur LIKE :search_term
+        OR t_log_installation.numero_compteur LIKE :search_term    OR identite_client.phone_number LIKE :search_term
 
-        OR identite_client.phone_number LIKE :search_term
+    OR DATE_FORMAT(
+        t_log_installation.date_fin_installation,
+        '%d/%m/%Y'
+    ) LIKE :search_term
 
-        OR DATE_FORMAT(
-            li.date_fin_installation,
-            '%d/%m/%Y'
-        ) LIKE :search_term
+    OR e_avenue.libelle LIKE :search_term
 
-        OR e_avenue.libelle LIKE :search_term
+    OR e_commune.libelle LIKE :search_term
 
-        OR e_commune.libelle LIKE :search_term
+    OR e_quartier.libelle LIKE :search_term
 
-        OR e_quartier.libelle LIKE :search_term
+    OR t_log_installation.motif_desaffectation LIKE :search_term
+)
 
-        OR li.motif_desaffectation LIKE :search_term
-    )
-
-    AND li.annule = 0
+AND t_log_installation.annule = 0
 
     ".$filtre."
 
@@ -1253,7 +1254,7 @@ LIMIT :from,:offset
 	public function countAll_BySearch_advanced($du, $au, $search_term, $user_context, $filtre)
 	{
 		$user_filtre = $this->GetUserFilterSearch($user_context);
-		$query = "SELECT COUNT(*) as total_rows FROM t_log_installation li STRAIGHT_JOIN t_main_data md ON li.ref_identific = md.id_ INNER JOIN t_param_identite AS identite_client ON md.client_id = identite_client.id LEFT JOIN t_utilisateurs ON li.code_installateur = t_utilisateurs.code_utilisateur LEFT JOIN t_utilisateurs as t_chef_equipe ON li.chef_equipe = t_chef_equipe.code_utilisateur LEFT JOIN t_log_adresses ON md.adresse_id = t_log_adresses.id LEFT JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.code LEFT JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_commune.code LEFT JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.code WHERE (Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) Like :search_term or md.id_ Like :search_term OR li.id_install Like :search_term OR t_utilisateurs.nom_complet Like :search_term OR t_chef_equipe.nom_complet Like :search_term OR li.numero_compteur Like :search_term OR identite_client.phone_number Like :search_term OR DATE_FORMAT(li.date_fin_installation,'%d/%m/%Y') Like :search_term OR e_avenue.libelle Like :search_term OR e_commune.libelle Like :search_term OR e_quartier.libelle Like :search_term OR li.motif_desaffectation LIKE :search_term) and (li.date_fin_installation >= :du AND li.date_fin_installation < DATE_ADD(:au, INTERVAL 1 DAY)) and li.annule=0 " . $filtre . $user_filtre;
+		$query = "SELECT COUNT(*) as total_rows FROM t_log_installation STRAIGHT_JOIN t_main_data ON t_log_installation.ref_identific = t_main_data.id_ INNER JOIN t_param_cvs ON t_param_cvs.code = t_main_data.cvs_id INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id INNER JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.code INNER JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_commune.code INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.code INNER JOIN t_utilisateurs ON t_log_installation.code_installateur = t_utilisateurs.code_utilisateur INNER JOIN t_utilisateurs as t_chef_equipe ON t_log_installation.chef_equipe = t_chef_equipe.code_utilisateur INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.code INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id WHERE (Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) Like :search_term or t_main_data.id_ Like :search_term OR t_log_installation.id_install Like :search_term OR t_utilisateurs.nom_complet Like :search_term OR t_chef_equipe.nom_complet Like :search_term OR t_log_installation.numero_compteur Like :search_term OR identite_client.phone_number Like :search_term OR DATE_FORMAT(t_log_installation.date_fin_installation,'%d/%m/%Y') Like :search_term OR e_avenue.libelle Like :search_term OR e_commune.libelle Like :search_term OR e_quartier.libelle Like :search_term OR t_log_installation.motif_desaffectation LIKE :search_term) and (t_log_installation.date_fin_installation >= :du AND t_log_installation.date_fin_installation < DATE_ADD(:au, INTERVAL 1 DAY)) and t_log_installation.annule=0 " . $filtre . $user_filtre;
 		$stmt = $this->connection->prepare($query);
 		$search_term = "%{$search_term}%";
 		$stmt->bindParam(':search_term', $search_term);
@@ -1292,7 +1293,7 @@ LIMIT :from,:offset
 	public function countAll_BySearch_advanced_DateOnly($du, $au, $user_context, $filtre)
 	{
 		$user_filtre = $this->GetUserFilterSearch($user_context);
-		$query = "SELECT COUNT(*) as total_rows FROM t_log_installation li STRAIGHT_JOIN t_main_data md ON li.ref_identific = md.id_ LEFT JOIN t_log_adresses ON md.adresse_id = t_log_adresses.id LEFT JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_commune.code LEFT JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.code LEFT JOIN t_utilisateurs ON li.code_installateur = t_utilisateurs.code_utilisateur LEFT JOIN t_utilisateurs as t_chef_equipe ON li.chef_equipe = t_chef_equipe.code_utilisateur LEFT JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.code WHERE (li.date_fin_installation >= :du AND li.date_fin_installation < DATE_ADD(:au, INTERVAL 1 DAY)) and li.annule=0 " . $filtre . $user_filtre;
+		$query = "SELECT COUNT(*) as total_rows FROM t_log_installation STRAIGHT_JOIN t_main_data ON t_log_installation.ref_identific = t_main_data.id_ INNER JOIN t_param_cvs ON t_param_cvs.code = t_main_data.cvs_id INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id INNER JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.code INNER JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_commune.code INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.code INNER JOIN t_utilisateurs ON t_log_installation.code_installateur = t_utilisateurs.code_utilisateur INNER JOIN t_utilisateurs as t_chef_equipe ON t_log_installation.chef_equipe = t_chef_equipe.code_utilisateur INNER JOIN t_param_organisme ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.code INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id WHERE (t_log_installation.date_fin_installation >= :du AND t_log_installation.date_fin_installation < DATE_ADD(:au, INTERVAL 1 DAY)) and t_log_installation.annule=0 " . $filtre . $user_filtre;
 		$stmt = $this->connection->prepare($query);
 		$stmt->bindParam(':du', $du);
 		$stmt->bindParam(':au', $au);
