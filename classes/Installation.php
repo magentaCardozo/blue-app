@@ -241,16 +241,13 @@ class Installation
 	function CreateWeb($type_inst)
 	{
 		$adress_Ent = new AdresseEntity($this->connection);
-		$this->numero_compteur = strip_tags($this->numero_compteur);
-
-
-		//EVITER DUPLICATE COMPTEUR
-		$stmt = $this->connection->prepare('SELECT id_,num_compteur_actuel,ref_installation_actuel,ref_dernier_log_controle FROM t_main_data where num_compteur_actuel=?');
+		$this->numero_compteur = strip_tags($this->numero_compteur);        //EVITER DUPLICATE COMPTEUR (on ignore les installations dont le compteur a été désaffecté)
+		$stmt = $this->connection->prepare('SELECT md.id_,md.num_compteur_actuel,md.ref_installation_actuel,md.ref_dernier_log_controle,li.compteur_desaffecte FROM t_main_data md LEFT JOIN t_log_installation li ON li.id_install = md.ref_installation_actuel where md.num_compteur_actuel=?');
 		$stmt->bindParam(1, $this->numero_compteur);
 		//$stmt->bindParam(1, $_GET['id'], PDO::PARAM_INT);
 		$stmt->execute();
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		if (!$row) {
+		if (!$row || (isset($row["compteur_desaffecte"]) && strtolower($row["compteur_desaffecte"]) == "1")) {
 			//A AJOUTER VERIFIER SI LE NUMERO DU COMPTEUR EXISTE DANS LA TABLE DES COMPTEURS
 			//echo 'nothing found';
 		} else {
@@ -530,14 +527,13 @@ class Installation
 
 
 	function Modifier()
-	{
-		//EVITER DUPLICATE COMPTEUR
-		$stmt = $this->connection->prepare('SELECT id_,num_compteur_actuel,ref_installation_actuel,ref_dernier_log_controle FROM t_main_data where num_compteur_actuel=?');
+	{        //EVITER DUPLICATE COMPTEUR (on ignore les installations dont le compteur a été désaffecté)
+		$stmt = $this->connection->prepare('SELECT md.id_,md.num_compteur_actuel,md.ref_installation_actuel,md.ref_dernier_log_controle,li.compteur_desaffecte FROM t_main_data md LEFT JOIN t_log_installation li ON li.id_install = md.ref_installation_actuel where md.num_compteur_actuel=?');
 		$stmt->bindParam(1, $this->numero_compteur);
 		//$stmt->bindParam(1, $_GET['id'], PDO::PARAM_INT);
 		$stmt->execute();
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		if (!$row) {
+		if (!$row || (isset($row["compteur_desaffecte"]) && strtolower($row["compteur_desaffecte"]) == "1")) {
 			//A AJOUTER VERIFIER SI LE NUMERO DU COMPTEUR EXISTE DANS LA TABLE DES COMPTEURS
 			// 
 		} else {
