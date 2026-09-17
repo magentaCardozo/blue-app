@@ -1076,7 +1076,9 @@ LEFT JOIN t_utilisateurs u
 
 
 LEFT JOIN t_utilisateurs chef
-    ON t_log_installation.chef_equipe = chef.code_utilisateurINNER JOIN t_param_organisme
+    ON t_log_installation.chef_equipe = chef.code_utilisateur
+
+INNER JOIN t_param_organisme
     ON t_main_data.id_equipe_identification = t_param_organisme.ref_organisme
 
 
