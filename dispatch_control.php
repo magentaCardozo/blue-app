@@ -25,8 +25,6 @@ $item = new PARAM_Assign($db);
 $utilisateur = new Utilisateur($db);
 
 $search_param = isset($_REQUEST['srch-term-client']) ? $_REQUEST['srch-term-client'] : "";
-// var_dump($search_param);
-// exit;
 if ($utilisateur->is_logged_in() == false) {
 	$utilisateur->redirect('login.php');
 }
@@ -43,6 +41,28 @@ $records_per_page = 100;
 $from_record_num = ($records_per_page * $page) - $records_per_page;
 $total_rows = 0;
 $category_id = '10'; //Avenue
+
+// ===================== Recherche avancée (comme lst_assign_control.php) =====================
+$filtre = '';
+$filtre_raw = isset($_GET['filtre-search']) ? $_GET['filtre-search'] : [];
+if ($filtre_raw === "") $filtre_raw = [];
+if (!is_array($filtre_raw)) $filtre_raw = [$filtre_raw];
+$filtre = $item->BuildAssignFiltre($filtre_raw);
+$du = isset($_GET['Du']) ? Utils::ClientToDbDateFormat($_GET['Du']) : "";
+$au = isset($_GET['Au']) ? Utils::ClientToDbDateFormat($_GET['Au']) : "";
+$du_ = isset($_GET['Du']) ? $_GET['Du'] : "";
+$au_ = isset($_GET['Au']) ? $_GET['Au'] : "";
+if ($du === null) $du = "";
+if ($au === null) $au = "";
+
+// url de pagination : on conserve tous les critères de recherche
+$page_url = 'dispatch_control.php?';
+if ($search_param != '') $page_url .= 'srch-term-client=' . urlencode($search_param) . '&';
+foreach ($filtre_raw as $f_item) {
+	$page_url .= 'filtre-search[]=' . urlencode($f_item) . '&';
+}
+if ($du_ != '') $page_url .= 'Du=' . urlencode($du_) . '&';
+if ($au_ != '') $page_url .= 'Au=' . urlencode($au_) . '&';
 ?>
 <!doctype html>
 <html lang="fr">
@@ -224,8 +244,8 @@ $category_id = '10'; //Avenue
 									<?php     }
 
 									$item->type_assignation = "1";	// Control
-									$list_items = $item->GetOrganeControlAssignedSearch($utilisateur, $search_param, $from_record_num, $records_per_page);
-									$total_rows = $item->GetOrganeControlAssignedSearchAll($utilisateur, $search_param);
+									$list_items = $item->GetOrganeControlAssignedSearchAdv($utilisateur, $search_param, $from_record_num, $records_per_page, $filtre, $du, $au);
+									$total_rows = $item->GetOrganeControlAssignedSearchAllAdv($utilisateur, $search_param, $filtre, $du, $au);
 
 									// $paginate_now = new CLS_Paginate();	
 
@@ -245,16 +265,97 @@ $category_id = '10'; //Avenue
 												<div class="card bg-white font-semi-bold mt-3 mb-4">
 													<div class="card-body">
 														<div class="row">
-															<div class="col-sm-12">
-																<div id="record_count" class="font-semi-bold" style="color:#5e6e82;font-size:16px">
+														<div class="col-sm-12">
+															<div id="record_count" class="font-semi-bold" style="color:#5e6e82;font-size:16px">
 
-																	<?php echo count($_items) . ' Elément(s)'; ?></div>
-																<div class="input-group mt-1">
-																	<form action="dispatch_control.php" method="post"><input type="text" id="srch-term-client" name="srch-term-client" class="form-control" placeholder="Recherche..." value="<?php echo $search_param; ?>">
-																		<button type="submit" name="search" id="search-btn" class="btn btn-primary"><i class="fa fa-search"></i>
-																		</button>
+																		<?php echo $total_rows . ' Elément(s)'; ?></div>
+																	<form action="dispatch_control.php" method="get" role="search" id="frm_search_advanced">
+																		<div class="input-group mt-1">
+																			<input type="text" id="srch-term-client" name="srch-term-client" class="form-control" placeholder="Recherche..." value="<?php echo $search_param; ?>">
+																			<div class="col-sm-3">
+																				<div class="form-group text-left mb-0 mt-1">
+																					<select class='form-control select2' style='width: 100%;' id='filtre-search' name='filtre-search[]' multiple="multiple">																		<option value="t_param_assignation.statut_='1'">Controlé</option>
+																		<option value="t_param_assignation.statut_='0'">Non controlé</option>
+																		<?php
+																		$communeEntity = new AdresseEntity($db);
+																		$site = new Site($db);
+																		$province = new AdresseEntity($db);
+																		$stmt_tc = $type_compteur->read();
+																		while ($row_gp = $stmt_tc->fetch(PDO::FETCH_ASSOC)) {
+																			echo "<option value=t_log_installation.type_new_cpteur='" . $row_gp["code"] . "'>Type compteur - " . $row_gp["libelle"] . "</option>";
+																		}
+																		echo "<option value=t_log_installation.type_new_cpteur=''>Type compteur - Non défini</option>";
+
+																		$stmt_chief = null;
+																		if ($utilisateur->id_service_group == '3' || $utilisateur->HasGlobalAccess()) {  //Administration
+																			$stmt_chief = $utilisateur->GetAllInstallateur();
+																		} else {
+																			$stmt_chief = $utilisateur->GetAllChiefLinkedUsers($utilisateur->code_utilisateur);
+																		}
+																		while ($row_chief = $stmt_chief->fetch(PDO::FETCH_ASSOC)) {
+																			echo "<option value=t_log_installation.installateur='" . $row_chief["code_utilisateur"] . "'>Installateur - " . $row_chief["nom_complet"] . "</option>";
+																		}
+
+																		$stmt_chief = null;
+																		if ($utilisateur->id_service_group == '3' || $utilisateur->HasGlobalAccess()) {  //Administration
+																			$stmt_chief = $utilisateur->GetAllChiefForAdmin();
+																		} else {
+																			$stmt_chief = $utilisateur->GetCurrentUserChief($utilisateur);
+																		}
+																		while ($row_chief = $stmt_chief->fetch(PDO::FETCH_ASSOC)) {
+																			echo "<option value=t_chef_equipe.code_utilisateur='" . $row_chief["code_utilisateur"] . "'>Chef équipe - " . $row_chief["nom_complet"] . "</option>";
+																		}
+
+																		$stmt_select = $province->getAllProvinces();
+																		$provinces = $stmt_select->fetchAll(PDO::FETCH_ASSOC);
+																		foreach ($provinces as $prov) {
+																			$stmt_select = $communeEntity->GetProvinceAllCommune($prov['code']);
+																			while ($row_select = $stmt_select->fetch(PDO::FETCH_ASSOC)) {
+																				echo "<option value=e_commune.code='" . $row_select["code"] . "'>Commune - " . $row_select["libelle"] . "</option>";
+																			}
+																			$stmt_select = $communeEntity->GetProvinceAllCVS($prov['code']);
+																			while ($row_select = $stmt_select->fetch(PDO::FETCH_ASSOC)) {
+																				echo "<option value=t_main_data.cvs_id='" . $row_select["code"] . "'>CVS - " . $row_select["libelle"] . "</option>";
+																			}
+																		}
+																		$stmt_select = $site->GetAll();
+																		while ($row_select = $stmt_select->fetch(PDO::FETCH_ASSOC)) {
+																			echo "<option value=t_main_data.ref_site_identif='" . $row_select["code"] . "'>Site - " . $row_select["libelle"] . "</option>";
+																		}
+
+																		$organisme = new Organisme($db);
+																		if ($utilisateur->id_service_group == '3' || $utilisateur->HasGlobalAccess()) {  //Administration
+																			$stmt_ = $organisme->read();
+																			while ($row_gp = $stmt_->fetch(PDO::FETCH_ASSOC)) {
+																				echo "<option value=t_param_assignation.id_organe='" . $row_gp["ref_organisme"] . "'>Organisme - " . $row_gp["denomination"] . "</option>";
+																			}
+																		} else {
+																			$organisme->ref_organisme = $utilisateur->id_organisme;
+																			$row_gp = $organisme->GetDetail();
+																			echo "<option value=t_param_assignation.id_organe='" . $row_gp["ref_organisme"] . "'>Organisme - " . $row_gp["denomination"] . "</option>";
+																		}
+																		?>
+																		</select>
+																		</div>
+																	</div>
+																	<div class="col-sm-2">
+																		<div class="input-group mt-2">
+																			<input type="text" autocomplete="none" class="form-control datetimepicker-input" name="Du" id="Du" placeholder="Du" value="<?php echo $du_; ?>" />
+																			<div class="input-group-append">
+																				<div class="input-group-text" id="add_on_du"><i class="far fa-calendar-alt"></i></div>
+																			</div>
+																		</div>
+																	</div>
+																	<div class="col-sm-2">
+																		<div class="input-group mt-2">
+																			<input type="text" autocomplete="none" class="form-control datetimepicker-input" name="Au" id="Au" placeholder="Au" value="<?php echo $au_; ?>" />
+																			<div class="input-group-append">
+																				<div class="input-group-text" id="add_on_au"><i class="far fa-calendar-alt"></i></div>
+																			</div>
+																		</div>
+																	</div>
+																	<button type="submit" name="search" id="btn_search" class="mx-2 btn btn-primary"><i class="fa fa-search"></i></button>
 																	</form>
-																</div>
 															</div>
 														</div>
 													</div>
@@ -345,19 +446,20 @@ $category_id = '10'; //Avenue
 
 																</div>
 															</div>
-														</div>
-
-
-													<?php 		}
+														</div>													<?php 		}
 
 
 
 													?>
 
+													<div class="clearfix">
 
+														<?php
+														// paging buttons
+														include_once 'layout_paging.php';
+														?>
 
-
-
+													</div>
 
 												</div>
 											</div>
@@ -376,7 +478,7 @@ $category_id = '10'; //Avenue
 				</div>
 			</form>
 			<?php
-			include_once "layout_paging.php";
+			/* paging déjà affiché dans la liste (layout_paging.php) */
 			?>
 		</div>
 	</div>

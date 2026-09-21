@@ -246,6 +246,225 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 	}
 
 
+	/**
+	 * Construit la clause WHERE (filtres avancés) à partir des options du select "filtre-search[]"
+	 * Même convention que lst_assign_control.php : option = "colonne='valeur'"
+	 */
+	function BuildAssignFiltre($filtre_raw)
+	{
+		$filtre = '';
+		if (!is_array($filtre_raw)) $filtre_raw = [$filtre_raw];
+		if (count($filtre_raw) > 0) {
+			$groups = array();
+			foreach ($filtre_raw as $v_) {
+				$filter_item = explode('=', $v_, 2);
+				if (count($filter_item) < 2) continue;
+				$key = trim($filter_item[0]);
+				$value = trim($filter_item[1]);
+				$value = trim($value, "'");
+				$value = addslashes($value);
+				if ($key == 't_param_assignation.statut_') {
+					$groups['statut'][] = "(t_param_assignation.statut_='" . $value . "')";
+				} else if ($key == 'e_commune.code') {
+					$groups['commune'][] = "(e_commune.code='" . $value . "')";
+				} else if ($key == 't_main_data.cvs_id') {
+					$groups['cvs'][] = "(t_main_data.cvs_id='" . $value . "')";
+				} else if ($key == 't_chef_equipe.code_utilisateur') {
+					$groups['chef'][] = "(t_param_assignation.id_chef_operation='" . $value . "')";
+				} else if ($key == 't_main_data.identificateur') {
+					$groups['identificateur'][] = "(t_main_data.identificateur='" . $value . "')";
+				} else if ($key == 't_main_data.ref_site_identif') {
+					$groups['site'][] = "(t_main_data.ref_site_identif='" . $value . "')";
+				} else if ($key == 't_param_assignation.id_organe') {
+					$groups['organisme'][] = "(t_param_assignation.id_organe='" . $value . "')";
+				} else if ($key == 't_log_installation.type_new_cpteur') {
+					if ($value == '') {
+						$groups['type_cpteur'][] = "(NOT EXISTS (SELECT 1 FROM t_log_installation tli WHERE tli.ref_identific = t_main_data.id_ AND tli.annule = 0))";
+					} else {
+						$groups['type_cpteur'][] = "(EXISTS (SELECT 1 FROM t_log_installation tli WHERE tli.ref_identific = t_main_data.id_ AND tli.annule = 0 AND tli.type_new_cpteur='" . $value . "'))";
+					}
+				} else if ($key == 't_log_installation.installateur') {
+					if ($value == '') {
+						$groups['installateur'][] = "(NOT EXISTS (SELECT 1 FROM t_log_installation tli WHERE tli.ref_identific = t_main_data.id_ AND tli.annule = 0))";
+					} else {
+						$groups['installateur'][] = "(EXISTS (SELECT 1 FROM t_log_installation tli WHERE tli.ref_identific = t_main_data.id_ AND tli.annule = 0 AND tli.installateur='" . $value . "'))";
+					}
+				}
+			}
+			foreach ($groups as $conds) {
+				$filtre .= " and (" . implode(" Or ", $conds) . ")";
+			}
+		}
+		return $filtre;
+	}
+
+	/**
+	 * Joins supplémentaires nécessaires selon le filtre (adresses) et la recherche plein texte
+	 */
+	function BuildAssignJoins($filtre, $with_adresses = false)
+	{
+		$joins = "";
+		if ($with_adresses || strpos($filtre, 'e_commune.') !== false || strpos($filtre, 'e_quartier.') !== false || strpos($filtre, 'e_ville.') !== false || strpos($filtre, 'e_avenue.') !== false) {
+			$joins .= " INNER JOIN t_log_adresses ON t_main_data.adresse_id = t_log_adresses.id INNER JOIN t_param_adresse_entity AS e_commune ON t_log_adresses.commune_id = e_commune.`code` INNER JOIN t_param_adresse_entity AS e_quartier ON t_log_adresses.quartier_id = e_quartier.`code` INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_ville.`code` INNER JOIN t_param_adresse_entity AS e_avenue ON t_log_adresses.avenue = e_avenue.`code`";
+		}
+		return $joins;
+	}
+
+	/**
+	 * Condition de période (Du / Au) sur la date d'assignation
+	 */
+	function BuildAssignDateCondition($du, $au)
+	{
+		$cond = "";
+		if ($du != "" && $au != "") {
+			$cond = " and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d') between :du_assign and :au_assign)";
+		} else if ($du != "") {
+			$cond = " and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d') >= :du_assign)";
+		} else if ($au != "") {
+			$cond = " and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d') <= :au_assign)";
+		}
+		return $cond;
+	}
+
+	function BindAssignDateParams(&$stmt, $du, $au)
+	{
+		if ($du != "") $stmt->bindValue(':du_assign', $du);
+		if ($au != "") $stmt->bindValue(':au_assign', $au);
+	}
+
+	/**
+	 * Version avancée de GetOrganeControlAssignedSearch avec filtres (statut, commune, CVS, organisme,
+	 * type compteur, installateur, chef équipe, site...) et période Du/Au
+	 */
+	function GetOrganeControlAssignedSearchAdv($user_context, $search, $from_record_num, $records_per_page, $filtre = "", $du = "", $au = "")
+	{
+		$user_filtre = $user_context->GetUserFilterAssignation() . " " . $filtre;
+		$search = trim($search);
+		$assign_joins = $this->BuildAssignJoins($filtre, $search != '');
+		$date_cond = $this->BuildAssignDateCondition($du, $au);
+
+		$select_cols = "t_main_data.id_,t_main_data.date_identification,t_main_data.reference_appartement,DATE_FORMAT(t_param_assignation.date_update,'%d/%m/%Y %H:%i:%S') as date_assign_technicien,t_main_data.p_a,t_main_data.gps_longitude,t_main_data.gps_latitude,Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue,coalesce(identite_client.phone_number,'-') as phone_client_blue,t_main_data.adresse_id,t_main_data.cvs_id,t_main_data.num_compteur_actuel,t_main_data.est_installer,t_param_assignation.id_assign,t_param_assignation.id_organe,t_param_assignation.datesys,DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S') as date_sys_fr,t_param_assignation.statut_,t_param_assignation.type_assignation,t_param_assignation.is_valid,t_param_assignation.annule,t_param_cvs.libelle,t_param_assignation.id_chef_operation,t_param_assignation.id_technicien,t_param_assignation.is_sceller_required,t_param_assignation.date_rendez_vous,DATE_FORMAT(t_param_assignation.date_rendez_vous,'%d/%m/%Y') as date_rendez_vous_fr,t_param_assignation.comment_rendez_vous,t_param_assignation.accesibility,t_param_assignation.date_accessibility";
+
+		$from_join = " FROM t_main_data INNER JOIN t_param_assignation ON t_main_data.id_ = t_param_assignation.id_fiche_identif INNER JOIN t_param_cvs ON t_main_data.cvs_id = t_param_cvs.`code` INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id " . $assign_joins;
+
+		$where_base = " where t_main_data.ref_site_identif=:ref_site_identif and t_param_assignation.annule=0 and t_param_assignation.is_valid=1 and t_param_assignation.type_assignation=:type_assignation";
+
+		$where_search = " and (t_main_data.p_a Like :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) Like :search_term or coalesce(identite_client.phone_number,'') Like :search_term or t_main_data.num_compteur_actuel Like :search_term or t_main_data.id_ Like :search_term or e_avenue.libelle Like :search_term or e_quartier.libelle Like :search_term or e_commune.libelle Like :search_term or e_ville.libelle Like :search_term or t_log_adresses.numero Like :search_term)";
+
+		$query = "SELECT " . $select_cols . $from_join . $where_base . ($search != '' ? $where_search : "") . $date_cond . $user_filtre . " ORDER BY t_param_assignation.datesys DESC LIMIT :from, :offset";
+
+		$stmt = $this->connection->prepare($query);
+		if ($search != '') {
+			$search_term = "%" . $search . "%";
+			$stmt->bindParam(':search_term', $search_term);
+		}
+		$stmt->bindParam(':from', $from_record_num, PDO::PARAM_INT);
+		$stmt->bindParam(':offset', $records_per_page, PDO::PARAM_INT);
+		$stmt->bindValue(":ref_site_identif", $user_context->site_id);
+		$stmt->bindValue(":type_assignation", $this->type_assignation);
+		$this->BindAssignDateParams($stmt, $du, $au);
+		$stmt->execute();
+
+		$adress_item = new  AdresseEntity($this->connection);
+		$result = array();
+		$item = array();
+
+		$result["items"] = array();
+		$row_ = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		if (count($row_) > 0) {
+			foreach ($row_ as $vl) {
+				$item['data'] = $vl;
+				$item["adresseTexte"] = $adress_item->GetAdressInfoTexte($vl["adresse_id"]);
+				$item["technicien"] = $user_context->GetUserDetailName($vl["id_technicien"]);
+				$item["chef"] = $user_context->GetUserDetailName($vl["id_chef_operation"]);
+				$result['items'][] = $item;
+			}
+		}
+		$result["error"] = 0;
+		return $result;
+	}
+
+	/**
+	 * Compteur total (toutes pages) pour la recherche avancée contrôle
+	 */
+	function GetOrganeControlAssignedSearchAllAdv($user_context, $search, $filtre = "", $du = "", $au = "")
+	{
+		$user_filtre = $user_context->GetUserFilterAssignation() . " " . $filtre;
+		$search = trim($search);
+		$assign_joins = $this->BuildAssignJoins($filtre, $search != '');
+		$date_cond = $this->BuildAssignDateCondition($du, $au);
+
+		$from_join = " FROM t_main_data INNER JOIN t_param_assignation ON t_main_data.id_ = t_param_assignation.id_fiche_identif INNER JOIN t_param_cvs ON t_main_data.cvs_id = t_param_cvs.`code` INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id " . $assign_joins;
+
+		$where_base = " where t_main_data.ref_site_identif=:ref_site_identif and t_param_assignation.annule=0 and t_param_assignation.is_valid=1 and t_param_assignation.type_assignation=:type_assignation";
+
+		$where_search = " and (t_main_data.p_a Like :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) Like :search_term or coalesce(identite_client.phone_number,'') Like :search_term or t_main_data.num_compteur_actuel Like :search_term or t_main_data.id_ Like :search_term or e_avenue.libelle Like :search_term or e_quartier.libelle Like :search_term or e_commune.libelle Like :search_term or e_ville.libelle Like :search_term or t_log_adresses.numero Like :search_term)";
+
+		$query = "SELECT COUNT(*) as total_rows" . $from_join . $where_base . ($search != '' ? $where_search : "") . $date_cond . $user_filtre;
+
+		$stmt = $this->connection->prepare($query);
+		if ($search != '') {
+			$search_term = "%" . $search . "%";
+			$stmt->bindParam(':search_term', $search_term);
+		}
+		$stmt->bindValue(":ref_site_identif", $user_context->site_id);
+		$stmt->bindValue(":type_assignation", $this->type_assignation);
+		$this->BindAssignDateParams($stmt, $du, $au);
+		$stmt->execute();
+		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $row['total_rows'];
+	}
+
+	/**
+	 * Version avancée de GetOrganeInstReplaceAssignedSearch (dispatch installation) avec filtres et période Du/Au
+	 */
+	function GetOrganeInstReplaceAssignedSearchAdv($user_context, $search = null, $filtre = "", $du = "", $au = "")
+	{
+		$user_filtre = $user_context->GetUserFilterAssignation() . " " . $filtre;
+		$search = trim($search);
+		$assign_joins = $this->BuildAssignJoins($filtre, $search != '');
+		$date_cond = $this->BuildAssignDateCondition($du, $au);
+
+		$select_cols = "t_main_data.id_,t_main_data.date_identification,t_main_data.reference_appartement,DATE_FORMAT(t_param_assignation.date_update,'%d/%m/%Y %H:%i:%S') as date_assign_technicien,t_main_data.p_a,t_main_data.gps_longitude,t_main_data.gps_latitude,Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) as nom_client_blue,coalesce(identite_client.phone_number,'-') as phone_client_blue,t_main_data.adresse_id,t_main_data.cvs_id,t_main_data.num_compteur_actuel,t_main_data.est_installer,t_param_assignation.id_assign,t_param_assignation.id_organe,t_param_assignation.datesys,DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S') as date_sys_fr,t_param_assignation.statut_,t_param_assignation.type_assignation,t_param_assignation.is_valid,t_param_assignation.annule,t_param_cvs.libelle,t_param_assignation.id_chef_operation,t_param_assignation.id_technicien,t_param_assignation.is_sceller_required,t_param_assignation.date_rendez_vous,DATE_FORMAT(t_param_assignation.date_rendez_vous,'%d/%m/%Y') as date_rendez_vous_fr,t_param_assignation.comment_rendez_vous,t_param_assignation.accesibility,t_param_assignation.date_accessibility";
+
+		$from_join = " FROM t_main_data INNER JOIN t_param_assignation ON t_main_data.id_ = t_param_assignation.id_fiche_identif INNER JOIN t_param_cvs ON t_main_data.cvs_id = t_param_cvs.`code` INNER JOIN t_param_identite AS identite_client ON t_main_data.client_id = identite_client.id " . $assign_joins;
+
+		$where_base = " where t_main_data.ref_site_identif=:ref_site_identif and t_param_assignation.annule=0 and t_param_assignation.is_valid=1 and (t_param_assignation.type_assignation=:type_assignation Or t_param_assignation.type_assignation='3')";
+
+		$where_search = " and (t_main_data.p_a Like :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) Like :search_term or coalesce(identite_client.phone_number,'') Like :search_term or t_main_data.num_compteur_actuel Like :search_term or t_main_data.id_ Like :search_term or e_avenue.libelle Like :search_term or e_quartier.libelle Like :search_term or e_commune.libelle Like :search_term or e_ville.libelle Like :search_term or t_log_adresses.numero Like :search_term)";
+
+		$query = "SELECT " . $select_cols . $from_join . $where_base . ($search != '' ? $where_search : "") . $date_cond . $user_filtre . " ORDER BY t_param_assignation.datesys DESC";
+
+		$stmt = $this->connection->prepare($query);
+		if ($search != '') {
+			$search_term = "%" . $search . "%";
+			$stmt->bindParam(':search_term', $search_term);
+		}
+		$stmt->bindValue(":ref_site_identif", $user_context->site_id);
+		$stmt->bindValue(":type_assignation", $this->type_assignation);
+		$this->BindAssignDateParams($stmt, $du, $au);
+		$stmt->execute();
+
+		$adress_item = new  AdresseEntity($this->connection);
+		$result = array();
+		$item = array();
+
+		$result["items"] = array();
+		$row_ = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		if (count($row_) > 0) {
+			foreach ($row_ as $vl) {
+				$item['data'] = $vl;
+				$item["adresseTexte"] = $adress_item->GetAdressInfoTexte($vl["adresse_id"]);
+				$item["technicien"] = $user_context->GetUserDetailName($vl["id_technicien"]);
+				$item["chef"] = $user_context->GetUserDetailName($vl["id_chef_operation"]);
+				$result['items'][] = $item;
+			}
+		}
+		$result["error"] = 0;
+		return $result;
+	}
+
+
 	function Supprimer()
 	{
 
@@ -404,6 +623,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			t_param_assignation.id_assign,
 			t_param_assignation.id_organe,
 			t_param_assignation.id_controleur_quality,
+			t_controleur.nom_complet as nom_controleur,
 			t_param_assignation.datesys,
 			DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S')  as date_sys_fr,
 			t_param_assignation.statut_,
@@ -428,6 +648,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			ON t_main_data.identificateur = t_identificateur.code_utilisateur 
 		left JOIN t_utilisateurs as t_chef_equipe 
 			ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
+		left JOIN t_utilisateurs as t_controleur 
+			ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
 		where t_main_data.ref_site_identif=:ref_site_identif 
 			and t_param_assignation.annule=0 
 			and t_param_assignation.type_assignation=:type_assignation   " . $user_filtre .
@@ -478,6 +700,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			t_param_assignation.id_assign,
 			t_param_assignation.id_organe,
 			t_param_assignation.id_controleur_quality,
+			t_controleur.nom_complet as nom_controleur,
 			t_param_assignation.datesys,
 			DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S')  as date_sys_fr,
 			t_param_assignation.statut_,
@@ -502,12 +725,20 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			ON t_main_data.identificateur = t_identificateur.code_utilisateur 
 		LEFT JOIN t_utilisateurs as t_chef_equipe 
 			ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
+		LEFT JOIN t_utilisateurs as t_controleur 
+			ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
 		WHERE (t_main_data.ref_site_identif=:ref_site_identif 
 			and t_param_assignation.annule=0 
 			and t_param_assignation.type_assignation=:type_assignation) 
 			and (num_compteur_actuel LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
 			LIKE :search_term or identite_client.phone_number 
-			LIKE :search_term) 
+			LIKE :search_term or t_controleur.nom_complet 
+			LIKE :search_term or t_chef_equipe.nom_complet 
+			LIKE :search_term or t_identificateur.nom_complet 
+			LIKE :search_term or e_avenue.libelle 
+			Like :search_term or e_quartier.libelle 
+			Like :search_term or e_commune.libelle 
+			Like :search_term) 
 			and (DATE_FORMAT(t_param_assignation.datesys,'%Y-%m-%d') between :du and :au)  " . $user_filtre .
 			" ORDER BY t_param_assignation.datesys  DESC LIMIT :from, :offset";
 
@@ -553,9 +784,10 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 				t_param_assignation.statut_,
 				t_param_assignation.type_assignation,
 				t_param_assignation.is_valid,
-				t_param_assignation.annule,
-				t_param_assignation.id_chef_operation,
-				t_param_assignation.id_controleur_quality
+				t_param_assignation.annule,					t_param_assignation.id_chef_operation,
+					t_param_assignation.id_controleur_quality,
+					t_controleur.nom_complet as nom_controleur
+
 			FROM t_main_data  
 				INNER JOIN t_param_identite AS identite_client 
 					ON t_main_data.client_id = identite_client.id 
@@ -573,6 +805,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_main_data.identificateur = t_identificateur.code_utilisateur 
 				LEFT JOIN t_utilisateurs as t_chef_equipe 
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
+				LEFT JOIN t_utilisateurs as t_controleur 
+					ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
 				WHERE (
 						t_main_data.ref_site_identif=:ref_site_identif 
 						and t_param_assignation.annule=0 
@@ -582,6 +816,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term OR identite_client.phone_number 
 					LIKE :search_term or  t_chef_equipe.nom_complet 
 					LIKE :search_term or  t_identificateur.nom_complet 
+					LIKE :search_term or t_controleur.nom_complet 
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 
@@ -620,6 +855,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_main_data.identificateur = t_identificateur.code_utilisateur 
 				left JOIN t_utilisateurs as t_chef_equipe 
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
+				left JOIN t_utilisateurs as t_controleur 
+					ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
 				where (t_main_data.ref_site_identif=:ref_site_identif 
 					and t_param_assignation.annule=0 
 					and t_param_assignation.type_assignation=:type_assignation) 
@@ -628,6 +865,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term or identite_client.phone_number 
 					LIKE :search_term or  t_chef_equipe.nom_complet 
 					LIKE :search_term or  t_identificateur.nom_complet 
+					LIKE :search_term or t_controleur.nom_complet 
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 
@@ -665,6 +903,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_main_data.identificateur = t_identificateur.code_utilisateur 
 				left JOIN t_utilisateurs as t_chef_equipe 
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
+				left JOIN t_utilisateurs as t_controleur 
+					ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
 				where (t_main_data.ref_site_identif=:ref_site_identif 
 					and t_param_assignation.annule=0 
 					and t_param_assignation.type_assignation=:type_assignation) 
@@ -674,6 +914,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term or identite_client.phone_number 
 					LIKE :search_term or  t_chef_equipe.nom_complet 
 					LIKE :search_term or  t_identificateur.nom_complet 
+					LIKE :search_term or t_controleur.nom_complet 
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 
