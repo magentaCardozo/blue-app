@@ -365,18 +365,16 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 		$this->BindAssignDateParams($stmt, $du, $au);
 		$stmt->execute();
 
-		$adress_item = new  AdresseEntity($this->connection);
 		$result = array();
-		$item = array();
-
 		$result["items"] = array();
 		$row_ = $stmt->fetchAll(PDO::FETCH_ASSOC);
 		if (count($row_) > 0) {
+			$this->PrefetchNamesAndAdresses($row_, $user_context);
 			foreach ($row_ as $vl) {
 				$item['data'] = $vl;
-				$item["adresseTexte"] = $adress_item->GetAdressInfoTexte($vl["adresse_id"]);
-				$item["technicien"] = $user_context->GetUserDetailName($vl["id_technicien"]);
-				$item["chef"] = $user_context->GetUserDetailName($vl["id_chef_operation"]);
+				$item["adresseTexte"] = $vl["adresseTexte"];
+				$item["technicien"] = $vl["technicien"];
+				$item["chef"] = $vl["chef"];
 				$result['items'][] = $item;
 			}
 		}
@@ -416,6 +414,56 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 	}
 
 	/**
+	 * Charge en 2 requêtes les libellés nécessaires au rendu des cartes :
+	 * - texte d'adresse (adresse_id) via un lookup sur t_param_adresse_entity
+	 * - nom des utilisateurs (id_technicien / id_chef_operation) via un IN (...)
+	 * Remplace GetAdressInfoTexte + GetUserDetailName appelés N fois (N+1 queries).
+	 */
+	function PrefetchNamesAndAdresses(&$rows, $user_context)
+	{
+		if (empty($rows) || !is_array($rows)) return;
+
+		$adress_item = new AdresseEntity($this->connection);
+
+		// ---------- 1) Adresses ----------
+		$adresse_ids = array_values(array_unique(array_filter(array_column($rows, 'adresse_id'))));
+		$adresse_map = array();
+		if (count($adresse_ids) > 0) {
+			$placeholders = implode(',', array_fill(0, count($adresse_ids), '?'));
+			$stmt = $this->connection->prepare("SELECT a.id, a.numero, a.avenue, e_av.libelle as avenue_libelle, e_q.libelle as quartier_libelle, e_c.libelle as commune_libelle, e_v.libelle as ville_libelle FROM t_log_adresses a LEFT JOIN t_param_adresse_entity e_av ON a.avenue = e_av.`code` LEFT JOIN t_param_adresse_entity e_q ON a.quartier_id = e_q.`code` LEFT JOIN t_param_adresse_entity e_c ON a.commune_id = e_c.`code` LEFT JOIN t_param_adresse_entity e_v ON a.ville_id = e_v.`code` WHERE a.id IN (" . $placeholders . ")");
+			$stmt->execute($adresse_ids);
+			foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $rw) {
+				$adresse_map[$rw['id']] = $rw['ville_libelle'] . ", N° " . $rw['numero'] . " Av/" . $rw['avenue_libelle'] . " Q/" . $rw['quartier_libelle'] . " C/" . $rw['commune_libelle'];
+			}
+		}
+
+		// ---------- 2) Noms des utilisateurs ----------
+		$user_ids = array();
+		foreach ($rows as $rw) {
+			if (!empty($rw['id_technicien'])) $user_ids[] = $rw['id_technicien'];
+			if (!empty($rw['id_chef_operation'])) $user_ids[] = $rw['id_chef_operation'];
+		}
+		$user_ids = array_values(array_unique($user_ids));
+		$users_map = array();
+		if (count($user_ids) > 0) {
+			$placeholders = implode(',', array_fill(0, count($user_ids), '?'));
+			$stmt = $this->connection->prepare("SELECT code_utilisateur, nom_complet FROM t_utilisateurs WHERE code_utilisateur IN (" . $placeholders . ")");
+			$stmt->execute($user_ids);
+			foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $rw) {
+				$users_map[$rw['code_utilisateur']] = $rw['nom_complet'];
+			}
+		}
+
+		// ---------- 3) Application sur les lignes ----------
+		foreach ($rows as $k => $vl) {
+			$aid = $vl["adresse_id"];
+			$rows[$k]["adresseTexte"] = isset($adresse_map[$aid]) ? $adresse_map[$aid] : $adress_item->GetAdressInfoTexte($aid);
+			$rows[$k]["technicien"] = isset($users_map[$vl["id_technicien"]]) ? $users_map[$vl["id_technicien"]] : $user_context->GetUserDetailName($vl["id_technicien"]);
+			$rows[$k]["chef"] = isset($users_map[$vl["id_chef_operation"]]) ? $users_map[$vl["id_chef_operation"]] : $user_context->GetUserDetailName($vl["id_chef_operation"]);
+		}
+	}
+
+	/**
 	 * Version avancée de GetOrganeInstReplaceAssignedSearch (dispatch installation) avec filtres et période Du/Au
 	 */
 	function GetOrganeInstReplaceAssignedSearchAdv($user_context, $search = null, $filtre = "", $du = "", $au = "")
@@ -445,18 +493,16 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 		$this->BindAssignDateParams($stmt, $du, $au);
 		$stmt->execute();
 
-		$adress_item = new  AdresseEntity($this->connection);
 		$result = array();
-		$item = array();
-
 		$result["items"] = array();
 		$row_ = $stmt->fetchAll(PDO::FETCH_ASSOC);
 		if (count($row_) > 0) {
+			$this->PrefetchNamesAndAdresses($row_, $user_context);
 			foreach ($row_ as $vl) {
 				$item['data'] = $vl;
-				$item["adresseTexte"] = $adress_item->GetAdressInfoTexte($vl["adresse_id"]);
-				$item["technicien"] = $user_context->GetUserDetailName($vl["id_technicien"]);
-				$item["chef"] = $user_context->GetUserDetailName($vl["id_chef_operation"]);
+				$item["adresseTexte"] = $vl["adresseTexte"];
+				$item["technicien"] = $vl["technicien"];
+				$item["chef"] = $vl["chef"];
 				$result['items'][] = $item;
 			}
 		}
@@ -624,6 +670,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			t_param_assignation.id_organe,
 			t_param_assignation.id_controleur_quality,
 			t_controleur.nom_complet as nom_controleur,
+			t_tech.nom_complet as nom_technicien,
 			t_param_assignation.datesys,
 			DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S')  as date_sys_fr,
 			t_param_assignation.statut_,
@@ -650,6 +697,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
 		left JOIN t_utilisateurs as t_controleur 
 			ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
+		left JOIN t_utilisateurs as t_tech 
+			ON t_param_assignation.id_technicien = t_tech.code_utilisateur 
 		where t_main_data.ref_site_identif=:ref_site_identif 
 			and t_param_assignation.annule=0 
 			and t_param_assignation.type_assignation=:type_assignation   " . $user_filtre .
@@ -701,6 +750,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			t_param_assignation.id_organe,
 			t_param_assignation.id_controleur_quality,
 			t_controleur.nom_complet as nom_controleur,
+			t_tech.nom_complet as nom_technicien,
 			t_param_assignation.datesys,
 			DATE_FORMAT(t_param_assignation.datesys,'%d/%m/%Y %H:%i:%S')  as date_sys_fr,
 			t_param_assignation.statut_,
@@ -727,12 +777,15 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 			ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
 		LEFT JOIN t_utilisateurs as t_controleur 
 			ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
+		LEFT JOIN t_utilisateurs as t_tech 
+			ON t_param_assignation.id_technicien = t_tech.code_utilisateur 
 		WHERE (t_main_data.ref_site_identif=:ref_site_identif 
 			and t_param_assignation.annule=0 
 			and t_param_assignation.type_assignation=:type_assignation) 
 			and (num_compteur_actuel LIKE :search_term or Concat(coalesce(identite_client.nom,''),' ',coalesce(identite_client.postnom,''),' ',coalesce(identite_client.prenom,'')) 
 			LIKE :search_term or identite_client.phone_number 
 			LIKE :search_term or t_controleur.nom_complet 
+			LIKE :search_term or t_tech.nom_complet 
 			LIKE :search_term or t_chef_equipe.nom_complet 
 			LIKE :search_term or t_identificateur.nom_complet 
 			LIKE :search_term or e_avenue.libelle 
@@ -786,7 +839,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 				t_param_assignation.is_valid,
 				t_param_assignation.annule,					t_param_assignation.id_chef_operation,
 					t_param_assignation.id_controleur_quality,
-					t_controleur.nom_complet as nom_controleur
+					t_controleur.nom_complet as nom_controleur,
+					t_tech.nom_complet as nom_technicien
 
 			FROM t_main_data  
 				INNER JOIN t_param_identite AS identite_client 
@@ -807,6 +861,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
 				LEFT JOIN t_utilisateurs as t_controleur 
 					ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
+				LEFT JOIN t_utilisateurs as t_tech 
+					ON t_param_assignation.id_technicien = t_tech.code_utilisateur 
 				WHERE (
 						t_main_data.ref_site_identif=:ref_site_identif 
 						and t_param_assignation.annule=0 
@@ -817,6 +873,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term or  t_chef_equipe.nom_complet 
 					LIKE :search_term or  t_identificateur.nom_complet 
 					LIKE :search_term or t_controleur.nom_complet 
+					LIKE :search_term or t_tech.nom_complet 
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 
@@ -857,6 +914,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
 				left JOIN t_utilisateurs as t_controleur 
 					ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
+				left JOIN t_utilisateurs as t_tech 
+					ON t_param_assignation.id_technicien = t_tech.code_utilisateur 
 				where (t_main_data.ref_site_identif=:ref_site_identif 
 					and t_param_assignation.annule=0 
 					and t_param_assignation.type_assignation=:type_assignation) 
@@ -866,6 +925,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term or  t_chef_equipe.nom_complet 
 					LIKE :search_term or  t_identificateur.nom_complet 
 					LIKE :search_term or t_controleur.nom_complet 
+					LIKE :search_term or t_tech.nom_complet 
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 
@@ -905,6 +965,8 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					ON t_param_assignation.id_chef_operation = t_chef_equipe.code_utilisateur 
 				left JOIN t_utilisateurs as t_controleur 
 					ON t_param_assignation.id_controleur_quality = t_controleur.code_utilisateur 
+				left JOIN t_utilisateurs as t_tech 
+					ON t_param_assignation.id_technicien = t_tech.code_utilisateur 
 				where (t_main_data.ref_site_identif=:ref_site_identif 
 					and t_param_assignation.annule=0 
 					and t_param_assignation.type_assignation=:type_assignation) 
@@ -915,6 +977,7 @@ INNER JOIN t_param_adresse_entity AS e_ville ON t_log_adresses.ville_id = e_vill
 					LIKE :search_term or  t_chef_equipe.nom_complet 
 					LIKE :search_term or  t_identificateur.nom_complet 
 					LIKE :search_term or t_controleur.nom_complet 
+					LIKE :search_term or t_tech.nom_complet 
 					LIKE :search_term or e_avenue.libelle 
 					Like :search_term or e_quartier.libelle 
 					Like :search_term or e_commune.libelle 

@@ -767,7 +767,7 @@ $search_value = isset($search_term) ? "value='{$search_term}'" : "";
                                                                     Contrôleur
 
                                                                 </div>
-                                                                <div class="font-medium text-primary client-phone"><?php echo ($row_["nom_controleur"] != '' ? $row_["nom_controleur"] : '-');      ?></div>
+                                                                <div class="font-medium text-primary client-phone"><?php echo ($row_["nom_controleur"] != '' ? $row_["nom_controleur"] : ($row_["nom_technicien"] != '' ? $row_["nom_technicien"] : '-'));      ?></div>
                                                             </div>
 
                                                             <div class="col-sm-3">

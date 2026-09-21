@@ -28,6 +28,7 @@ class Utilisateur
 	public $phone_user;
 	public $id_service_group;
 	public $access_au_module_deux;
+	private $user_filter_assignation_cache = null; // cache du filtre SQL utilisateur (voir GetUserFilterAssignation)
 	// public $OFF_SET=' OFFSET '; 
 	public $OFF_SET = ',';
 
@@ -174,6 +175,10 @@ class Utilisateur
 
 	function GetUserFilterAssignation()
 	{
+		// Arbre utilisateur récursif coûteux : calculé une seule fois par requête HTTP
+		if (isset($this->user_filter_assignation_cache)) {
+			return $this->user_filter_assignation_cache;
+		}
 		$user_filtre = "";
 		if ($this->id_service_group ==  '3' || $this->HasGlobalAccess()) {
 			$user_filtre = "";
@@ -196,6 +201,7 @@ class Utilisateur
 		} else {
 			$user_filtre = " and (t_param_assignation.id_technicien='" . $this->code_utilisateur  . "' or t_param_assignation.id_controleur_quality='" . $this->code_utilisateur  . "')";
 		}
+		$this->user_filter_assignation_cache = $user_filtre;
 		return $user_filtre;
 	}
 

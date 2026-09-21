@@ -280,6 +280,7 @@ if ($au_ != '') $page_url .= 'Au=' . urlencode($au_) . '&';
 																		$communeEntity = new AdresseEntity($db);
 																		$site = new Site($db);
 																		$province = new AdresseEntity($db);
+																		$type_compteur = new Param_TypeCompteur($db);
 																		$stmt_tc = $type_compteur->read();
 																		while ($row_gp = $stmt_tc->fetch(PDO::FETCH_ASSOC)) {
 																			echo "<option value=t_log_installation.type_new_cpteur='" . $row_gp["code"] . "'>Type compteur - " . $row_gp["libelle"] . "</option>";
