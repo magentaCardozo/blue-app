@@ -49,6 +49,12 @@ $au_ = isset($_POST['Au']) ? ($_POST['Au']) : "";
 $utilisateur->is_logged_in();
 $utilisateur->readOne();
 
+// Filtre d'approbation optionnel : '1' = approuvés, '0' = pas approuvés, '' = tous (les brouillons sont toujours exclus)
+$approbation_filter = '';
+if (isset($_POST['approbation']) && $_POST['approbation'] !== '') {
+    $approbation_filter = " and t_log_controle.approbation_control='" . addslashes($_POST['approbation']) . "'";
+}
+
 function cellAlign($newsheet, $cells, $align)
 {
     if ($align == "R") {
@@ -146,7 +152,7 @@ $newsheet->setTitle("SYNTHESE");
 $drawing = new Drawing();
 $drawing->setName('Logo');
 $drawing->setDescription('Company Logo');
-$drawing->setPath(__DIR__ . '\images\logo2.png');
+$drawing->setPath(__DIR__ . '/images/logo2.png');
 $drawing->setHeight(100);
 $drawing->setWidth(180);
 $drawing->setCoordinates('A1');
@@ -265,14 +271,14 @@ foreach ($liste_site as $site_item) {
     $drawing = new Drawing();
     $drawing->setName('Logo');
     $drawing->setDescription('Company Logo');
-    $drawing->setPath(__DIR__ . '\images\logo2.png');
+    $drawing->setPath(__DIR__ . '/images/logo2.png');
     $drawing->setHeight(100);
     $drawing->setWidth(180);
     $drawing->setCoordinates('A1');
     $drawing->setWorksheet($newsheet);
 
     // Titre du site avec fond coloré (comme dans le premier fichier)
-    $range = 'A7:I7';
+    $range = 'A7:J7';
     $newsheet->setCellValue("A7", "LISTE DES COMPTEURS CONTROLES - " . $site_classe->intitule_site);
     $newsheet->getStyle($range)->getFill()
         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
@@ -281,7 +287,7 @@ foreach ($liste_site as $site_item) {
     $rowNumber = 8;
     
     $cell = 'Période : du ' . $du_ . ' au ' . $au_;
-    $range = 'A8:I8';
+    $range = 'A8:J8';
     $newsheet->setCellValue($col . $rowNumber, $cell);
     $newsheet->getStyle($range)->getFill()
         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
@@ -337,7 +343,8 @@ foreach ($liste_site as $site_item) {
         "", // N°
         "Quartier", "CVS", "Adresse", "Noms et Postnoms",
         "Date debut inst.", "Date fin inst.", "N° Compteur vérifier", "N° Compteur trouvé",
-        "Date controle", "Controleur", "Date dernier ticket", "Montant ticket", "Crédit restant", "Conso 30 jours",
+        "Date controle", "Controleur", "Statut",
+        "Date dernier ticket", "Montant ticket", "Crédit restant", "Conso 30 jours",
         "Etat fraude", "Type(s) fraude", "Code(s) diagnostic", "Observations"
     );
 
@@ -359,7 +366,7 @@ foreach ($liste_site as $site_item) {
 
     // ITERATION DATA POUR CHAQUE CVS
     foreach ($cvs_list as $cvs_item) {
-        $data_ = $cls_report->getCVS_CompteursControl($cvs_item["code"], $du, $au);
+        $data_ = $cls_report->getCVS_CompteursControl($cvs_item["code"], $du, $au, $approbation_filter);
         $nb_data_ = count($data_);
         
         if ($nb_data_ > 0) {
@@ -531,6 +538,13 @@ foreach ($liste_site as $site_item) {
                 cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
+                // Colonne 12: Statut (approuvé / pas approuvé) — les brouillons sont exclus de cet export
+                $statut_controle_export = (isset($row_["approbation_control"]) && $row_["approbation_control"] === '1') ? 'Approuvé' : 'Pas approuvé';
+                $newsheet->setCellValue($col . $rowNumber, $statut_controle_export);
+                cellBorder($newsheet, $col . $rowNumber);
+                cellAlign($newsheet, $col . $rowNumber, 'C');
+                $col++;
+
                 // Colonne 12: Date dernier ticket
                 $newsheet->setCellValue($col . $rowNumber, $date_de_dernier_ticket_rentre);
                 cellBorder($newsheet, $col . $rowNumber);
@@ -581,10 +595,10 @@ foreach ($liste_site as $site_item) {
 
                 // Alternance des couleurs de ligne (comme dans le premier fichier)
                 if ($ctr_context % 2 == 0) {
-                    $rowRange = 'A' . $rowNumber . ':S' . $rowNumber;
+                    $rowRange = 'A' . $rowNumber . ':T' . $rowNumber;
                     $newsheet->getStyle($rowRange)->getFill()
                         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                        ->getStartColor()->setARGB('FFD6E2F0');
+                        ->                        getStartColor()->setARGB('FFD6E2F0');
                 }
 
                 $rowNumber++;
@@ -596,7 +610,7 @@ foreach ($liste_site as $site_item) {
     // Appliquer trim et alignement à droite sur toutes les données de la feuille
     if ($rowNumber > $startDataRow) {
         $lastDataRow = $rowNumber - 1;
-        applyTrimAndAlignRight($newsheet, $startDataRow, $lastDataRow, 'A', 'S');
+        applyTrimAndAlignRight($newsheet, $startDataRow, $lastDataRow, 'A', 'T');
     }
 }
 

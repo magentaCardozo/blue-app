@@ -148,10 +148,20 @@ $utilisateur->readOne();
 																</div>
 															</div>
 														</div>
+														<div class="col-xl-2 col-lg-2 col-md-12 col-sm-12 col-12 mb-2 ">
+															<label for="approbation">Statut</label>
+															<div class="form-group">
+																<select class="form-control" id="approbation" name="approbation">
+																	<option value="">Tous (approuvés + pas approuvés)</option>
+																	<option value="1">Approuvés</option>
+																	<option value="0">Pas approuvés</option>
+																</select>
+															</div>
+														</div>
 														<div class="col-xl-1 col-lg-1 col-md-12 col-sm-12 col-12 ">
 															<label> </label>
 															<p class="text-right">
-																<button type="submit" class="btn btn-outline-primary">
+															<button type="submit" class="btn btn-outline-primary">
 																	<i class="fas fa-search mr-2"></i>Extraire</button>
 															</p>
 														</div>
