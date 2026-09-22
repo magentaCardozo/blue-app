@@ -646,6 +646,16 @@ $search_value = isset($search_term) ? "value='{$search_term}'" : "";
                                                         <button type="submit" name="search" id="btn_search" class="mx-2 btn btn-primary"><i class="fa fa-search"></i>
                                                         </button>
 
+                                                        <?php
+                                                        // Listes pour le modal d'export Excel : contrôleurs désignés et créateurs d'assignation
+                                                        $stmt_ctrl_xls = $db->query("SELECT DISTINCT a.id_technicien as code, COALESCE(u.nom_complet, a.id_technicien) as nom FROM t_param_assignation a LEFT JOIN t_utilisateurs u ON a.id_technicien = u.code_utilisateur WHERE a.type_assignation='1' AND a.id_technicien IS NOT NULL AND a.id_technicien <> '' ORDER BY nom");
+                                                        $controleurs_xls = $stmt_ctrl_xls->fetchAll(PDO::FETCH_ASSOC);
+
+                                                        $stmt_createur_xls = $db->query("SELECT DISTINCT a.n_user_create as code, COALESCE(u.nom_complet, a.n_user_create) as nom FROM t_param_assignation a LEFT JOIN t_utilisateurs u ON a.n_user_create = u.code_utilisateur WHERE a.n_user_create IS NOT NULL AND a.n_user_create <> '' ORDER BY nom");
+                                                        $createurs_xls = $stmt_createur_xls->fetchAll(PDO::FETCH_ASSOC);
+                                                        ?>
+                                                        <button type="button" id="btn_export_xls" class="mx-2 btn btn-success"><i class="fa fa-file-excel"></i> Exporter</button>
+
 
                                                         <button id="add-cancel-checkboxes" class="btn  btn-warning">Activer l'annulation</button>
                                                         <div class="w-100 d-flex mt-2">
@@ -1641,6 +1651,112 @@ $search_value = isset($search_term) ? "value='{$search_term}'" : "";
             }
         </script>
 
+        <!-- ================= MODAL EXPORT EXCEL ================= -->
+        <div class="modal fade" id="dlg_export_xls" tabindex="-1" role="dialog" aria-labelledby="dlgExportXlsLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dlgExportXlsLabel"><i class="fa fa-file-excel"></i> Export Excel - Assignations pour contrôle</h5>
+                        <a href="#" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </a>
+                    </div>
+                    <form id="form_export_xls" action="reporting/rpt_assignations_detail_xls.php" method="post" target="_blank">
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="xls_controleur">Nom contrôleur</label>
+                                <select class="form-control" id="xls_controleur" name="controleur">
+                                    <option value="">-- Tous les contrôleurs --</option>
+                                    <?php foreach ($controleurs_xls as $user_xls): ?>
+                                        <option value="<?php echo $user_xls['code']; ?>"><?php echo $user_xls['nom']; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="xls_createur">Assigné par (créateur de l'assignation)</label>
+                                <select class="form-control" id="xls_createur" name="createur">
+                                    <option value="">-- Tout le monde --</option>
+                                    <?php foreach ($createurs_xls as $user_xls): ?>
+                                        <option value="<?php echo $user_xls['code']; ?>"><?php echo $user_xls['nom']; ?></option>
+                                    <?php endforeach; ?>
+                                    </select>
+                            </div>                                <div class="form-row">
+                                    <div class="form-group col-6">
+                                        <label for="xls_du">Date début</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control datetimepicker-input" id="xls_du" name="Du" placeholder="Du" autocomplete="off" />
+                                            <div class="input-group-append">
+                                                <div class="input-group-text" id="xls_add_on_du"><i class="far fa-calendar-alt"></i></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group col-6">
+                                        <label for="xls_au">Date fin</label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control datetimepicker-input" id="xls_au" name="Au" placeholder="Au" autocomplete="off" />
+                                            <div class="input-group-append">
+                                                <div class="input-group-text" id="xls_add_on_au"><i class="far fa-calendar-alt"></i></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.85em;">Laissez les dates vides pour extraire toutes les assignations.</div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                                <button type="submit" class="btn btn-success"><i class="fa fa-file-excel"></i> Extraire Excel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        <script>
+            $('#btn_export_xls').click(function() {
+                $('#dlg_export_xls').modal('show');
+            });
+
+            if ($("#xls_du").length) {
+                $('#xls_du').datetimepicker({
+                    format: 'dd/mm/yyyy',
+                    language: 'fr',
+                    weekStart: 1,
+                    todayBtn: 1,
+                    autoclose: 1,
+                    minView: 2
+                });
+                $('#xls_du').on("show", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }).on("hide", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            }
+            if ($("#xls_au").length) {
+                $('#xls_au').datetimepicker({
+                    format: 'dd/mm/yyyy',
+                    language: 'fr',
+                    weekStart: 1,
+                    todayBtn: 1,
+                    autoclose: 1,
+                    minView: 2
+                });
+                $('#xls_au').on("show", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }).on("hide", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            }
+            $('#xls_add_on_du').click(function() {
+                $('#xls_du').datetimepicker('show');
+            });
+            $('#xls_add_on_au').click(function() {
+                $('#xls_au').datetimepicker('show');
+            });
+        </script>
 
 </body>
 
