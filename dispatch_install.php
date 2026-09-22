@@ -228,6 +228,7 @@ $from_record_num = ($records_per_page * $page) - $records_per_page;
 
 									$item->type_assignation = "2";
 									$list_items = $item->GetOrganeInstReplaceAssignedSearchAdv($utilisateur, $search_param, $filtre, $du, $au);
+									$total_rows = $item->GetOrganeInstReplaceAssignedSearchAllAdv($utilisateur, $search_param, $filtre, $du, $au);
 									$_items = $list_items['items'];
 									?>
 
@@ -248,7 +249,7 @@ $from_record_num = ($records_per_page * $page) - $records_per_page;
 																		<?php echo $total_rows . ' Elément(s)'; ?></div>
 																	<form action="dispatch_install.php" method="get" role="search" id="frm_search_advanced">
 																		<div class="input-group mt-1">
-																			<input type="text" id="srch-term-client" name="srch-term-client" class="form-control" placeholder="Recherche..." value="<?php echo $search_param; ?>">
+																			<input type="text" id="srch-term-client" name="srch-term-client" class="form-control" placeholder="Recherche (client, compteur, PA, adresse, technicien, chef...)" value="<?php echo $search_param; ?>">
 																			<div class="col-sm-3">
 																				<div class="form-group text-left mb-0 mt-1">
 																					<select class='form-control select2' style='width: 100%;' id='filtre-search' name='filtre-search[]' multiple="multiple">

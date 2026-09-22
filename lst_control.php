@@ -421,6 +421,9 @@ $utilisateur->readOne();
 										<div class="form-group text-left mb-0 mt-1" id='bloc_installateur'>
 											<select class='form-control select2' style='width: 100%;' id='filtre' name='filtre[]' required multiple="multiple">
 												<option value="t_log_controle.cas_de_fraude='Oui'">Cas Fraude</option>
+												<option value="TATAPPROVE">Approuvé</option>
+												<option value="TATDRAFT">Brouillon</option>
+												<option value="TATNOTAPPROVE">Pas approuvé</option>
 												<?php
 
 

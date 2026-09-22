@@ -1661,7 +1661,7 @@ $search_value = isset($search_term) ? "value='{$search_term}'" : "";
                             <span aria-hidden="true">×</span>
                         </a>
                     </div>
-                    <form id="form_export_xls" action="reporting/rpt_assignations_detail_xls.php" method="post" target="_blank">
+                    <form id="form_export_xls" action="reporting/rpt_assignations_detail_xls.php" method="post">
                         <div class="modal-body">
                             <div class="form-group">
                                 <label for="xls_controleur">Nom contrôleur</label>
@@ -1714,6 +1714,53 @@ $search_value = isset($search_term) ? "value='{$search_term}'" : "";
         <script>
             $('#btn_export_xls').click(function() {
                 $('#dlg_export_xls').modal('show');
+            });
+
+            // Téléchargement AJAX : pas de popup, message d'erreur visible en cas d'échec
+            $('#form_export_xls').on('submit', function(e) {
+                e.preventDefault();
+                var $form = $(this);
+                var $btn = $form.find('button[type=submit]');
+                var btnHtml = $btn.html();
+                $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Extraction...');
+                ShowLoader('Extraction en cours...');
+                $.ajax({
+                    url: $form.attr('action'),
+                    type: 'POST',
+                    data: $form.serialize(),
+                    xhrFields: { responseType: 'blob' },
+                    success: function(blob, textStatus, jqXHR) {
+                        var ct = (jqXHR.getResponseHeader('Content-Type') || '');
+                        if (ct.indexOf('spreadsheetml') === -1) {
+                            // Réponse inattendue (session expirée, erreur PHP...) : afficher le message
+                            var reader = new FileReader();
+                            reader.onload = function() {
+                                var msg = String(reader.result).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                                alert('Extraction impossible : ' + msg.substring(0, 150));
+                            };
+                            reader.readAsText(blob);
+                            return;
+                        }
+                        var nom = 'assignations_controle.xlsx';
+                        var cd = jqXHR.getResponseHeader('Content-Disposition') || '';
+                        var m = cd.match(/filename="?([^";]+)"?/);
+                        if (m) nom = m[1];
+                        var lien = document.createElement('a');
+                        lien.href = URL.createObjectURL(blob);
+                        lien.download = nom;
+                        document.body.appendChild(lien);
+                        lien.click();
+                        document.body.removeChild(lien);
+                        $('#dlg_export_xls').modal('hide');
+                    },
+                    error: function() {
+                        alert("Erreur pendant l'extraction. Vérifiez votre connexion ou reconnectez-vous.");
+                    },
+                    complete: function() {
+                        $btn.prop('disabled', false).html(btnHtml);
+                        HideLoader();
+                    }
+                });
             });
 
             if ($("#xls_du").length) {

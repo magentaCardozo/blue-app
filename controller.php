@@ -3388,6 +3388,7 @@ exit();*/
 				$arr_chef_equipe_control = array();
 				$arr_controleur = array();
 				$arr_cas_fraude = array();
+				$arr_approbation = array();
 				$filtres = explode(',', $_GET['filtre']);
 				foreach ($filtres as $k_ => $v_) {
 					$filter_item = explode('=', $v_);
@@ -3403,6 +3404,12 @@ exit();*/
 						$arr_chef_equipe_control[] = $v_;
 					} else if ($filter_item[0] == 't_log_controle.controleur') {
 						$arr_controleur[] = $v_;
+					} else if ($filter_item[0] == 'TATAPPROVE') {
+						$arr_approbation[] = "(t_log_controle.is_draft_control='0' AND t_log_controle.approbation_control='1')";
+					} else if ($filter_item[0] == 'TATDRAFT') {
+						$arr_approbation[] = "(t_log_controle.is_draft_control='1')";
+					} else if ($filter_item[0] == 'TATNOTAPPROVE') {
+						$arr_approbation[] = "(t_log_controle.is_draft_control='0' AND (t_log_controle.approbation_control IS NULL OR t_log_controle.approbation_control='0'))";
 					}
 				}
 
@@ -3412,13 +3419,26 @@ exit();*/
 					$len_ = count($arr_cas_fraude);
 					$contexte_ctr = 0;
 					foreach ($arr_cas_fraude as $est_item) {
-						//$len_moins = $len_ - 1;
+						//$len_moins = $len_ - TAT
 						if ($contexte_ctr == 0) {
 							$filtre .=  $est_item . "";
 						} else {
 							$filtre .= " Or " . $est_item . "";
 						}
 
+						$contexte_ctr++;
+					}
+					$filtre .= ")";
+				}
+				if (count($arr_approbation) > 0) {
+					$filtre .= " and (";
+					$contexte_ctr = 0;
+					foreach ($arr_approbation as $est_item) {
+						if ($contexte_ctr == 0) {
+							$filtre .=  $est_item . "";
+						} else {
+							$filtre .= " Or " . $est_item . "";
+						}
 						$contexte_ctr++;
 					}
 					$filtre .= ")";
@@ -3655,6 +3675,7 @@ exit();*/
 				$arr_controleur = array();
 				$arr_cas_fraude = array();
 				$arr_sites = [];
+				$arr_approbation = array();
 
 				$filtres = explode(',', $_GET['filtre']);
 				foreach ($filtres as $k_ => $v_) {
@@ -3671,6 +3692,12 @@ exit();*/
 						$arr_chef_equipe_control[] = $v_;
 					} else if ($filter_item[0] == 't_log_controle.controleur') {
 						$arr_controleur[] = $v_;
+					} else if ($filter_item[0] == 'TATAPPROVE') {
+						$arr_approbation[] = "(t_log_controle.is_draft_control='0' AND t_log_controle.approbation_control='1')";
+					} else if ($filter_item[0] == 'TATDRAFT') {
+						$arr_approbation[] = "(t_log_controle.is_draft_control='1')";
+					} else if ($filter_item[0] == 'TATNOTAPPROVE') {
+						$arr_approbation[] = "(t_log_controle.is_draft_control='0' AND (t_log_controle.approbation_control IS NULL OR t_log_controle.approbation_control='0'))";
 					} else if ($filter_item[0] == 't_log_controle.ref_site_controle') {
 						$arr_sites[] = $v_;
 					}
@@ -3698,13 +3725,26 @@ exit();*/
 					$len_ = count($arr_cas_fraude);
 					$contexte_ctr = 0;
 					foreach ($arr_cas_fraude as $est_item) {
-						//$len_moins = $len_ - 1;
+						//$len_moins = $len_ - TAT
 						if ($contexte_ctr == 0) {
 							$filtre .=  $est_item . "";
 						} else {
 							$filtre .= " Or " . $est_item . "";
 						}
 
+						$contexte_ctr++;
+					}
+					$filtre .= ")";
+				}
+				if (count($arr_approbation) > 0) {
+					$filtre .= " and (";
+					$contexte_ctr = 0;
+					foreach ($arr_approbation as $est_item) {
+						if ($contexte_ctr == 0) {
+							$filtre .=  $est_item . "";
+						} else {
+							$filtre .= " Or " . $est_item . "";
+						}
 						$contexte_ctr++;
 					}
 					$filtre .= ")";
