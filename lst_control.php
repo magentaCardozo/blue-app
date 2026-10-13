@@ -1695,7 +1695,7 @@ $utilisateur->readOne();
 				</div>
 				<div class="modal-body text-center">
 					<form id="frm_approbation_control" method="post" action="controller.php" enctype="multipart/form-data">
-						<input id="view_control" name="view" type="hidden">
+						<input id="view_control_approve" name="view" type="hidden" value="create_control_approve">
 						<input id="id_control_approve" name="id_" type="hidden">
 						<div class="form-group text-left">
 							<label class="text-dark text-left">Numéro Compteur</label>
@@ -2320,7 +2320,7 @@ $utilisateur->readOne();
 				e.preventDefault();
 				var num_cpteur = $('#numero_serie_cpteur').val();
 				$("#comment_approve_control").val('');
-				$("#view_control").val("create_control_approve");
+				$("#view_control_approve").val("create_control_approve");
 				$("#id_control_approve").val($('#id_control').val());
 				$("#approve_control_compteur").html(num_cpteur);
 				$("#notification_title_control").text("Approbation Contrôle");
@@ -3166,15 +3166,23 @@ $utilisateur->readOne();
 						var idx = $(this).data('index');
 						var imgId = fieldName + '_' + idx;
 						var imgEl = document.getElementById(imgId);
+						var srcAttr = imgEl ? (imgEl.getAttribute('src') || '') : '';
 						if (imgEl && imgEl.src && imgEl.src.match(/^data\:image\/(\w+)/)) {
 							var block = imgEl.src.split(";");
 							var contentType = block[0].split(":")[1];
 							var realData = block[1].split(",")[1];
 							var blob = b64toBlob(realData, contentType);
 							formWData.append(fieldName + '[]', blob, 'photo_' + Date.now() + '_' + slotCount + '.png');
+							formWData.append(fieldName + '_slots[]', '__new__');
+							slotCount++;
+						} else if (srcAttr.indexOf('pictures/') !== -1) {
+							// Image déjà enregistrée sur le serveur : on demande de la conserver
+							formWData.append(fieldName + '_slots[]', srcAttr.split('?')[0].split('/').pop());
 							slotCount++;
 						}
 					});
+					// Marqueur vide : indique au serveur que la liste des slots est complète (même si tout a été retiré)
+					formWData.append(fieldName + '_slots[]', '');
 					formWData.append(fieldName + '_count', slotCount);
 				}
 

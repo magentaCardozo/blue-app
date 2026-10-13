@@ -8104,8 +8104,6 @@ function processCaptureInstall($FILES, $id_install)
 
 function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 {
-
-
 	Utils::F_Exist('pictures');
 	Utils::F_Exist('pictures_temp');
 
@@ -8118,53 +8116,92 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 		'photo_sceller_deux' => '_CTL_SC2',
 		'photo_signature_client' => '_CTL_SGN'
 	);
+	// Anciens suffixes encore présents sur le disque
+	$legacySuffixes = array('_CTL_CTR' => array('_ctl'));
+	$maxImages = 4;
 
 	foreach ($imageFields as $fieldName => $suffix) {
-		$uploadedCount = 0;
-
+		// 1) Nouveaux fichiers envoyés pour ce champ
+		$newFiles = array();
 		if (isset($FILES[$fieldName]) && is_array($FILES[$fieldName]['name'])) {
-			// Multi-image mode: process each uploaded file
 			$count = count($FILES[$fieldName]['name']);
 			for ($i = 0; $i < $count; $i++) {
 				if (!empty($FILES[$fieldName]['name'][$i]) && $FILES[$fieldName]['error'][$i] === UPLOAD_ERR_OK) {
-					if ($uploadedCount === 0) {
-						$filename = $ref_fiche_controle . $suffix . '.png';
-					} else {
-						$filename = $ref_fiche_controle . $suffix . '_' . ($uploadedCount + 1) . '.png';
-					}
-					$source_image = 'pictures_temp/' . $filename;
-					$image_destination = 'pictures/' . $filename;
-					if (move_uploaded_file($FILES[$fieldName]['tmp_name'][$i], $source_image)) {
-						Utils::compress2($source_image, $image_destination, 50);
-						unlink($source_image);
-					}
-					$uploadedCount++;
+					$newFiles[] = $FILES[$fieldName]['tmp_name'][$i];
 				}
-		}
+			}
 		} elseif (isset($FILES[$fieldName]) && !is_array($FILES[$fieldName]['name'])) {
-			// Single image mode (backward compatible)
-			$filename = $ref_fiche_controle . $suffix . '.png';
 			if (!empty($FILES[$fieldName]['name']) && $FILES[$fieldName]['error'] === UPLOAD_ERR_OK) {
-				$source_image = 'pictures_temp/' . $filename;
-				$image_destination = 'pictures/' . $filename;
-				if (move_uploaded_file($FILES[$fieldName]['tmp_name'], $source_image)) {
-					Utils::compress2($source_image, $image_destination, 50);
-					unlink($source_image);
-				}
-				$uploadedCount = 1;
+				$newFiles[] = $FILES[$fieldName]['tmp_name'];
 			}
 		}
 
-		// Clean up old images beyond the uploaded count
-		// e.g. if uploadedCount=2, clean _3, _4. If uploadedCount=0, clean all.
-		for ($j = $uploadedCount; $j < 4; $j++) {
-			if ($j === 0) {
-				$oldFile = 'pictures/' . $ref_fiche_controle . $suffix . '.png';
-			} else {
-				$oldFile = 'pictures/' . $ref_fiche_controle . $suffix . '_' . ($j + 1) . '.png';
+		// 2) Ordre des slots envoyé par le formulaire web : nom d'une image existante à conserver, ou "__new__"
+		$hasSlotInfo = isset($_POST[$fieldName . '_slots']) && is_array($_POST[$fieldName . '_slots']);
+		$slots = $hasSlotInfo ? $_POST[$fieldName . '_slots'] : array();
+
+		// Sans info de slots (ancien client / mobile) et sans nouveau fichier : ne rien toucher
+		if (!$hasSlotInfo && count($newFiles) === 0) {
+			continue;
+		}
+		// Sans info de slots mais avec nouveaux fichiers : remplacement complet (comportement d'origine)
+		if (!$hasSlotInfo) {
+			$slots = array_fill(0, count($newFiles), '__new__');
+		}
+
+		// Fichiers existants autorisés pour ce champ (évite toute manipulation de chemin)
+		$allowedExisting = array();
+		$allSuffixes = array_merge(array($suffix), isset($legacySuffixes[$suffix]) ? $legacySuffixes[$suffix] : array());
+		foreach ($allSuffixes as $sfx) {
+			for ($n = 1; $n <= $maxImages; $n++) {
+				$name = $ref_fiche_controle . $sfx . ($n === 1 ? '' : '_' . $n) . '.png';
+				if (file_exists('pictures/' . $name) && filesize('pictures/' . $name) > 0) {
+					$allowedExisting[$name] = true;
+				}
 			}
-			if (file_exists($oldFile)) {
-				unlink($oldFile);
+		}
+
+		// 3) Préparer la liste finale dans pictures_temp (pour pouvoir réordonner sans écraser)
+		$staged = array();
+		$newIdx = 0;
+		$uid = uniqid('', true);
+		foreach ($slots as $slot) {
+			if (count($staged) >= $maxImages) break;
+			$slot = basename((string)$slot);
+			if ($slot === '__new__') {
+				if (!isset($newFiles[$newIdx])) continue;
+				$tmp = 'pictures_temp/' . $ref_fiche_controle . $suffix . '_new_' . $uid . '_' . $newIdx . '.png';
+				$newIdx++;
+				if (move_uploaded_file($newFiles[$newIdx - 1], $tmp)) {
+					$staged[] = array('path' => $tmp, 'compress' => true);
+				}
+			} elseif (isset($allowedExisting[$slot])) {
+				$tmp = 'pictures_temp/' . $ref_fiche_controle . $suffix . '_keep_' . $uid . '_' . count($staged) . '.png';
+				if (copy('pictures/' . $slot, $tmp)) {
+					$staged[] = array('path' => $tmp, 'compress' => false);
+				}
+				unset($allowedExisting[$slot]); // éviter les doublons
+			}
+		}
+
+		// 4) Supprimer les anciens fichiers de ce champ (nouveau et ancien suffixe)
+		foreach ($allSuffixes as $sfx) {
+			for ($n = 1; $n <= $maxImages; $n++) {
+				$old = 'pictures/' . $ref_fiche_controle . $sfx . ($n === 1 ? '' : '_' . $n) . '.png';
+				if (file_exists($old)) {
+					unlink($old);
+				}
+			}
+		}
+
+		// 5) Écrire les images finales dans l'ordre : ref_SUFFIX.png, ref_SUFFIX_2.png, ...
+		foreach ($staged as $k => $st) {
+			$dest = 'pictures/' . $ref_fiche_controle . $suffix . ($k === 0 ? '' : '_' . ($k + 1)) . '.png';
+			if ($st['compress']) {
+				Utils::compress2($st['path'], $dest, 50);
+				if (file_exists($st['path'])) unlink($st['path']);
+			} else {
+				rename($st['path'], $dest);
 			}
 		}
 	}
