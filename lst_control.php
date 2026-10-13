@@ -1787,15 +1787,55 @@ $utilisateur->readOne();
 			if (input.files && input.files[0]) {
 				var reader = new FileReader();
 				reader.onload = function(e) {
-					$('#' + bloc_destination).prop("src", e.target.result);
+					shrinkDataUrl(e.target.result, function(dataUrl) {
+						$('#' + bloc_destination).prop("src", dataUrl);
+					});
 				}
 
 				reader.readAsDataURL(input.files[0]);
+				// Permet de re-sélectionner le même fichier
+				input.value = '';
 			}
+		}
+
+		// Redimensionne / compresse une image (JPEG, 1600px max) pour rester sous les limites d'upload du serveur
+		function shrinkDataUrl(dataUrl, callback, maxSize, quality) {
+			maxSize = maxSize || 1600;
+			quality = quality || 0.8;
+			var img = new Image();
+			img.onload = function() {
+				var w = img.naturalWidth || img.width;
+				var h = img.naturalHeight || img.height;
+				if (!w || !h) { callback(dataUrl); return; }
+				var ratio = Math.min(1, maxSize / Math.max(w, h));
+				var canvas = document.createElement('canvas');
+				canvas.width = Math.round(w * ratio);
+				canvas.height = Math.round(h * ratio);
+				var ctx = canvas.getContext('2d');
+				ctx.fillStyle = '#fff';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+				try {
+					callback(canvas.toDataURL('image/jpeg', quality));
+				} catch (err) {
+					callback(dataUrl);
+				}
+			};
+			img.onerror = function() { callback(dataUrl); };
+			img.src = dataUrl;
 		}
 
 		/* ===== Multi-image management ===== */
 		var imageSlotCounts = {
+			'photo_compteur': 1,
+			'photo_avant_control': 1,
+			'photo_apres_control': 1,
+			'photo_sceller_un': 1,
+			'photo_sceller_deux': 1,
+			'photo_signature_client': 1
+		};
+		// Index unique par slot (ne jamais réutiliser un index après suppression, sinon ids d'images en double)
+		var imageSlotNextIndex = {
 			'photo_compteur': 1,
 			'photo_avant_control': 1,
 			'photo_apres_control': 1,
@@ -1808,9 +1848,9 @@ $utilisateur->readOne();
 		function addImageSlot(fieldName) {
 			if (imageSlotCounts[fieldName] >= maxImagesPerField) {
 				swal("Information", "Maximum 4 images par champ", "warning");
-				return;
+				return null;
 			}
-			var index = imageSlotCounts[fieldName];
+			var index = imageSlotNextIndex[fieldName]++;
 			var slotHtml = '<div class="image-slot" data-index="' + index + '">' +
 				'<img style="height:150px;" class="preview-img" id="' + fieldName + '_' + index + '" />' +
 				'<button type="button" class="btn-remove-slot" onclick="removeImageSlot(\'' + fieldName + '\', ' + index + ')" title="Supprimer">&times;</button>' +
@@ -1823,6 +1863,7 @@ $utilisateur->readOne();
 			$('#container_' + fieldName + ' .multi-image-slots').append(slotHtml);
 			imageSlotCounts[fieldName]++;
 			updateAddButton(fieldName);
+			return index;
 		}
 
 		function removeImageSlot(fieldName, index) {
@@ -1841,17 +1882,11 @@ $utilisateur->readOne();
 
 		function resetImageSlots(fieldName) {
 			var container = $('#container_' + fieldName + ' .multi-image-slots');
-			container.find('.image-slot').each(function(i) {
-				if (i === 0) {
-					$(this).find('img').prop('src', '');
-				} else {
-					$(this).remove();
-				}
-			});
-			imageSlotCounts[fieldName] = 1;
-			updateAddButton(fieldName);
-			// Reset the first slot's index
-			container.find('.image-slot:first').attr('data-index', '0');
+			container.find('.image-slot').remove();
+			imageSlotCounts[fieldName] = 0;
+			imageSlotNextIndex[fieldName] = 0;
+			// Recrée un slot 0 propre (ids cohérents même si le slot 0 avait été supprimé)
+			addImageSlot(fieldName);
 		}
 
 		function resetAllImageSlots() {
@@ -3433,10 +3468,9 @@ $utilisateur->readOne();
 										resetImageSlots(field);
 										if (imgPaths && imgPaths.length > 0) {
 											for (var i = 0; i < imgPaths.length && i < 4; i++) {
-												if (i > 0) {
-													addImageSlot(field);
-											}
-											$('#' + field + '_' + i).attr('src', imgPaths[i]);
+												var slotIdx = (i === 0) ? 0 : addImageSlot(field);
+												if (slotIdx === null) break;
+												$('#' + field + '_' + slotIdx).attr('src', imgPaths[i]);
 											}
 										}
 									});
@@ -3574,7 +3608,9 @@ $utilisateur->readOne();
 			webcam.snap();
 
 			var bloc_destination = $("#bloc_destination").val();
-			$('#' + bloc_destination).prop("src", canvasElement_control.toDataURL("image/png"));
+			shrinkDataUrl(canvasElement_control.toDataURL("image/png"), function(dataUrl) {
+				$('#' + bloc_destination).prop("src", dataUrl);
+			});
 
 
 			//$("#photo_compteur").prop("src", canvasElement_control.toDataURL("image/png"));

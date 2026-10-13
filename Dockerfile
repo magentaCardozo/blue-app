@@ -28,6 +28,10 @@ RUN apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Limites PHP (6 champs photo x 4 images par contrôle = 24 fichiers par envoi)
+RUN printf "memory_limit = 512M\nmax_execution_time = 120\nupload_max_filesize = 64M\npost_max_size = 64M\nmax_file_uploads = 50\n" \
+    > /etc/php/8.3/apache2/conf.d/99-blue-app.ini
+
 # Activer mod_rewrite pour Apache
 RUN a2enmod rewrite
 

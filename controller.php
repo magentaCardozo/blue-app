@@ -6809,7 +6809,10 @@ DroitsNotGranted();
 			if ($result_array["error"] == 0) {
 				//UPLOAD FAIL
 				//$filename=$result_array["id"].'.jpeg'; 
-				processCaptureControl($_FILES, $item->ref_fiche_controle, $item->photo_compteur);
+				$failedImages = processCaptureControl($_FILES, $item->ref_fiche_controle, $item->photo_compteur);
+				if ($failedImages > 0) {
+					$result_array["message"] = (isset($result_array["message"]) ? $result_array["message"] : "") . " (Attention : " . $failedImages . " image(s) non enregistrée(s), veuillez les reprendre)";
+				}
 			}
 			echo json_encode($result_array);
 		}
@@ -6967,7 +6970,10 @@ DroitsNotGranted();
 							}*/
 
 				//$filename=$result_array["id"].'.jpeg'; 
-				processCaptureControl($_FILES, $item->ref_fiche_controle, $item->photo_compteur);
+				$failedImages = processCaptureControl($_FILES, $item->ref_fiche_controle, $item->photo_compteur);
+				if ($failedImages > 0) {
+					$result_array["message"] = (isset($result_array["message"]) ? $result_array["message"] : "") . " (Attention : " . $failedImages . " image(s) non enregistrée(s), veuillez les reprendre)";
+				}
 			}
 			echo json_encode($result_array);
 		}
@@ -8119,6 +8125,7 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 	// Anciens suffixes encore présents sur le disque
 	$legacySuffixes = array('_CTL_CTR' => array('_ctl'));
 	$maxImages = 4;
+	$failed = 0; // images envoyées mais rejetées / non enregistrées
 
 	foreach ($imageFields as $fieldName => $suffix) {
 		// 1) Nouveaux fichiers envoyés pour ce champ
@@ -8128,11 +8135,24 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 			for ($i = 0; $i < $count; $i++) {
 				if (!empty($FILES[$fieldName]['name'][$i]) && $FILES[$fieldName]['error'][$i] === UPLOAD_ERR_OK) {
 					$newFiles[] = $FILES[$fieldName]['tmp_name'][$i];
+				} elseif ($FILES[$fieldName]['error'][$i] !== UPLOAD_ERR_NO_FILE) {
+					$failed++;
 				}
 			}
 		} elseif (isset($FILES[$fieldName]) && !is_array($FILES[$fieldName]['name'])) {
 			if (!empty($FILES[$fieldName]['name']) && $FILES[$fieldName]['error'] === UPLOAD_ERR_OK) {
 				$newFiles[] = $FILES[$fieldName]['tmp_name'];
+			} elseif ($FILES[$fieldName]['error'] !== UPLOAD_ERR_NO_FILE) {
+				$failed++;
+			}
+		}
+
+		// Images annoncées par le client mais absentes de $_FILES (ex. max_file_uploads dépassé)
+		if (isset($_POST[$fieldName . '_slots']) && is_array($_POST[$fieldName . '_slots'])) {
+			$expectedNew = count(array_keys($_POST[$fieldName . '_slots'], '__new__', true));
+			$received = isset($FILES[$fieldName]['name']) ? count((array)$FILES[$fieldName]['name']) : 0;
+			if ($expectedNew > $received) {
+				$failed += $expectedNew - $received;
 			}
 		}
 
@@ -8174,6 +8194,8 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 				$newIdx++;
 				if (move_uploaded_file($newFiles[$newIdx - 1], $tmp)) {
 					$staged[] = array('path' => $tmp, 'compress' => true);
+				} else {
+					$failed++;
 				}
 			} elseif (isset($allowedExisting[$slot])) {
 				$tmp = 'pictures_temp/' . $ref_fiche_controle . $suffix . '_keep_' . $uid . '_' . count($staged) . '.png';
@@ -8203,8 +8225,12 @@ function processCaptureControl($FILES, $ref_fiche_controle, $photo_compteur)
 			} else {
 				rename($st['path'], $dest);
 			}
+			if (!file_exists($dest) || filesize($dest) <= 0) {
+				$failed++;
+			}
 		}
 	}
+	return $failed;
 }
 function getMultiImageHtml($ref, $suffix, $label, $maxImages = 4)
 {

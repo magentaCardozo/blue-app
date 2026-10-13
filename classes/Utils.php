@@ -764,8 +764,8 @@ $onlyconsonants = str_replace($vowels, "", "Hello World of PHP");
 			$image = @imagecreatefrompng($source);
 		}
 
-		if ($image === null) {
-			// Echec de creation GD, copier le fichier source tel quel
+		if (!$image) {
+			// Echec de creation GD (null ou false), copier le fichier source tel quel
 			copy($source, $destination);
 			return $destination;
 		}
