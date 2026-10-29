@@ -25,6 +25,32 @@ FROM t_param_site_production INNER JOIN t_utilisateur_site_accessible ON t_param
         return $liste_site;
     }
 
+    /**
+     * Fraudes et codes diagnostics de plusieurs contrôles en quelques requêtes
+     * (évite un CLS_Controle::GetDetail() complet par ligne dans les exports Excel).
+     * Retourne ['fraudes' => [ref => [codes]], 'observations' => [ref => [codes]]]
+     */
+    function GetFraudesObservationsControles($refs_controle)
+    {
+        $result = array('fraudes' => array(), 'observations' => array());
+        $refs_controle = array_values(array_unique(array_filter($refs_controle, 'strlen')));
+        $sources = array(
+            'fraudes' => "SELECT ref_fiche_control, ref_code_fraude AS code FROM t_log_controle_fraudes WHERE ref_fiche_control IN (%s)",
+            'observations' => "SELECT ref_fiche_control, ref_code_obs AS code FROM t_log_controle_observations WHERE ref_fiche_control IN (%s)",
+        );
+        foreach (array_chunk($refs_controle, 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+            foreach ($sources as $key => $query) {
+                $stmt = $this->connection->prepare(sprintf($query, $placeholders));
+                $stmt->execute($chunk);
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $result[$key][$row['ref_fiche_control']][] = $row['code'];
+                }
+            }
+        }
+        return $result;
+    }
+
     function GetAll_Site_CVSList($site)
     {
         $site = (strip_tags($site));

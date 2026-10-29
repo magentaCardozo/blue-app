@@ -18,6 +18,9 @@ require_once '../classes/PARAM_TypeObservation.php';
 require_once '../classes/CLS_Controle.php';
 include_once '../core.php';
 header('Content-type: text/html;charset=utf-8');
+// Un avertissement affiché au milieu du .xlsx rend le fichier illisible
+ini_set('display_errors', '0');
+set_time_limit(600);
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -134,6 +137,17 @@ function applyTrimAndAlignRight($newsheet, $startRow, $endRow, $startCol, $endCo
             }
         }
     }
+}
+
+// Caches des libellés (évite une requête par ligne)
+$cache_labels = array();
+function cachedLabel(&$cache, $type, $code, $loader)
+{
+    $code = (string)$code;
+    if (!isset($cache[$type][$code])) {
+        $cache[$type][$code] = $code === '' ? '' : trim((string)$loader($code));
+    }
+    return $cache[$type][$code];
 }
 
 if (in_array($MULTI_ACCESS_SITE_CODE, $site)) {
@@ -365,19 +379,33 @@ foreach ($liste_site as $site_item) {
     $startDataRow = $rowNumber;
 
     // ITERATION DATA POUR CHAQUE CVS
+    $data_par_cvs = array();
+    $refs_controle = array();
     foreach ($cvs_list as $cvs_item) {
-        $data_ = $cls_report->getCVS_CompteursControl($cvs_item["code"], $du, $au, $approbation_filter);
+        $data_par_cvs[$cvs_item["code"]] = $cls_report->getCVS_CompteursControl($cvs_item["code"], $du, $au, $approbation_filter);
+        foreach ($data_par_cvs[$cvs_item["code"]] as $r_) {
+            $refs_controle[] = $r_["ref_fiche_controle"];
+        }
+    }
+    $fraudes_obs = $cls_report->GetFraudesObservationsControles($refs_controle);
+
+    foreach ($cvs_list as $cvs_item) {
+        $data_ = $data_par_cvs[$cvs_item["code"]];
         $nb_data_ = count($data_);
         
         if ($nb_data_ > 0) {
             foreach ($data_ as $row_) {
                 $col = 'A';
                 $date_controle_fr = isset($row_["date_controle_fr"]) ? trim($row_["date_controle_fr"]) : '';
-                $controleur_name = $utilisateur->GetUserDetailName($row_['controleur'] ?? '');
-                $controleur_name = trim($controleur_name);
+                $controleur_name = cachedLabel($cache_labels, 'user', $row_['controleur'] ?? '', function ($c) use ($utilisateur) {
+                    return $utilisateur->GetUserDetailName($c);
+                });
 
-                $cvs->code = isset($row_["cvs_id"]) ? $row_["cvs_id"] : '';
-                $cvs->GetDetailIN();
+                $cvs_libelle = cachedLabel($cache_labels, 'cvs', $row_["cvs_id"] ?? '', function ($c) use ($cvs) {
+                    $cvs->code = $c;
+                    $cvs->GetDetailIN();
+                    return $cvs->libelle ?? '';
+                });
                 
                 $E_item = $adresseItem->GetAdressInfo($row_["adresse_id"] ?? '');
                 $numero = '';
@@ -386,13 +414,10 @@ foreach ($liste_site as $site_item) {
                 
                 if ($E_item !== false && is_array($E_item)) {
                     $numero = isset($E_item['numero']) ? trim($E_item['numero']) : '';
-                    $avenue = $adresseItem->GetLabel($E_item['avenue'] ?? '');
-                    $avenue = trim($avenue);
-                    $quartier_ = $adresseItem->GetLabel($E_item['quartier_id'] ?? '');
-                    $quartier_ = trim($quartier_);
+                    $avenue = cachedLabel($cache_labels, 'entite', $E_item['avenue'] ?? '', array($adresseItem, 'GetLabel'));
+                    $quartier_ = cachedLabel($cache_labels, 'entite', $E_item['quartier_id'] ?? '', array($adresseItem, 'GetLabel'));
                 }
                 
-                $cvs_libelle = isset($cvs->libelle) ? trim($cvs->libelle) : '';
                 $adresse = trim($avenue . ' ' . $numero);
                 $nom_postnom = isset($row_["nom_client_blue"]) ? trim($row_["nom_client_blue"]) : '';
 
@@ -443,154 +468,110 @@ foreach ($liste_site as $site_item) {
                 $consommation_de_30jours_actuels = isset($row_["consommation_de_30jours_actuels"]) ? trim($row_["consommation_de_30jours_actuels"]) : '';
                 $etat_fraude = isset($row_["cas_de_fraude"]) ? trim($row_["cas_de_fraude"]) : '';
 
-                // Récupération des fraudes et observations
-                $item_ctl->ref_fiche_controle = isset($row_["ref_fiche_controle"]) ? $row_["ref_fiche_controle"] : '';
-                $data = $item_ctl->GetDetail($utilisateur->id_service_group ?? 0);
-                
-                $type_fraudes = "";
-                if (!empty($data['fraudes'])) {
-                    $lst_fraudes_selected = "";
-                    foreach ($data['fraudes'] as $value_) {
-                        $typeFraude->code = $value_['ref_code_fraude'] ?? '';
+                // Fraudes et observations (chargées en une fois pour tout le site)
+                $ref_ctl = isset($row_["ref_fiche_controle"]) ? $row_["ref_fiche_controle"] : '';
+                $labels_fraudes = array();
+                foreach (($fraudes_obs['fraudes'][$ref_ctl] ?? array()) as $code_) {
+                    $labels_fraudes[] = cachedLabel($cache_labels, 'fraude', $code_, function ($c) use ($typeFraude) {
+                        $typeFraude->code = $c;
                         $typeFraude->GetDetailIN();
-                        $lst_fraudes_selected .= (isset($typeFraude->code_label) ? trim($typeFraude->code_label) : '') . "-";
-                    }
-                    $type_fraudes = rtrim(trim($lst_fraudes_selected), "-");
+                        return $typeFraude->code_label ?? '';
+                    });
                 }
+                $type_fraudes = rtrim(trim(implode('-', $labels_fraudes) . (count($labels_fraudes) ? '-' : '')), "-");
 
-                $type_codes_diagnostics = "";
-                if (!empty($data['codes_observations'])) {
-                    $lst_type_codes_diagnostics_selected = "";
-                    foreach ($data['codes_observations'] as $value_) {
-                        $typeObservation->code = $value_['ref_code_obs'] ?? '';
+                $labels_obs = array();
+                foreach (($fraudes_obs['observations'][$ref_ctl] ?? array()) as $code_) {
+                    $labels_obs[] = cachedLabel($cache_labels, 'observation', $code_, function ($c) use ($typeObservation) {
+                        $typeObservation->code = $c;
                         $typeObservation->GetDetailIN();
-                        $lst_type_codes_diagnostics_selected .= (isset($typeObservation->code_label) ? trim($typeObservation->code_label) : '') . "-";
-                    }
-                    $type_codes_diagnostics = rtrim(trim($lst_type_codes_diagnostics_selected), "-");
+                        return $typeObservation->code_label ?? '';
+                    });
                 }
+                $type_codes_diagnostics = rtrim(trim(implode('-', $labels_obs) . (count($labels_obs) ? '-' : '')), "-");
 
                 $diagnostics_general = isset($row_["diagnostics_general"]) ? trim($row_["diagnostics_general"]) : '';
 
                 // ÉCRITURE DES DONNÉES AVEC STYLE DU PREMIER FICHIER
                 // Colonne 1: N°
                 $newsheet->setCellValue($col . $rowNumber, trim((string)$ctr_context));
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 2: Quartier
                 $newsheet->setCellValue($col . $rowNumber, $quartier_);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 3: CVS
                 $newsheet->setCellValue($col . $rowNumber, $cvs_libelle);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 4: Adresse
                 $newsheet->setCellValue($col . $rowNumber, $adresse);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 5: Noms et Postnoms
                 $newsheet->setCellValue($col . $rowNumber, $nom_postnom);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 6: Date debut installation
                 $newsheet->setCellValue($col . $rowNumber, $date_debut_installation);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 7: Date fin installation
                 $newsheet->setCellValue($col . $rowNumber, $date_fin_installation);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 8: N° Compteur à vérifier
                 $newsheet->setCellValue($col . $rowNumber, $numero_compteur_a_verifier);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 9: N° Compteur trouvé
                 $newsheet->setCellValue($col . $rowNumber, $numero_compteur_trouver);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 10: Date controle
                 $newsheet->setCellValue($col . $rowNumber, $date_controle_fr);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 11: Controleur
                 $newsheet->setCellValue($col . $rowNumber, $controleur_name);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 12: Statut (approuvé / pas approuvé) — les brouillons sont exclus de cet export
                 $statut_controle_export = (isset($row_["approbation_control"]) && $row_["approbation_control"] === '1') ? 'Approuvé' : 'Pas approuvé';
                 $newsheet->setCellValue($col . $rowNumber, $statut_controle_export);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'C');
                 $col++;
 
                 // Colonne 12: Date dernier ticket
                 $newsheet->setCellValue($col . $rowNumber, $date_de_dernier_ticket_rentre);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 13: Montant ticket
                 $newsheet->setCellValue($col . $rowNumber, $valeur_du_dernier_ticket);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 14: Crédit restant
                 $newsheet->setCellValue($col . $rowNumber, $credit_restant);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 15: Conso 30 jours
                 $newsheet->setCellValue($col . $rowNumber, $consommation_de_30jours_actuels);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 16: Etat fraude
                 $newsheet->setCellValue($col . $rowNumber, $etat_fraude);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 17: Type(s) fraude
                 $newsheet->setCellValue($col . $rowNumber, $type_fraudes);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 18: Code(s) diagnostic
                 $newsheet->setCellValue($col . $rowNumber, $type_codes_diagnostics);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Colonne 19: Observations
                 $newsheet->setCellValue($col . $rowNumber, $diagnostics_general);
-                cellBorder($newsheet, $col . $rowNumber);
-                cellAlign($newsheet, $col . $rowNumber, 'R');
                 $col++;
 
                 // Alternance des couleurs de ligne (comme dans le premier fichier)
@@ -607,10 +588,15 @@ foreach ($liste_site as $site_item) {
         }
     }
     
-    // Appliquer trim et alignement à droite sur toutes les données de la feuille
+    // Bordures et alignement appliqués en une fois sur toutes les données (valeurs déjà trimées)
     if ($rowNumber > $startDataRow) {
         $lastDataRow = $rowNumber - 1;
-        applyTrimAndAlignRight($newsheet, $startDataRow, $lastDataRow, 'A', 'T');
+        $newsheet->getStyle('A' . $startDataRow . ':T' . $lastDataRow)->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
+        ]);
+        // Colonne Statut centrée
+        $newsheet->getStyle('L' . $startDataRow . ':L' . $lastDataRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 }
 

@@ -19,6 +19,9 @@ require_once '../classes/PARAM_TypeObservation.php';
 require_once '../classes/CLS_Controle.php';
 include_once '../core.php';
 header('Content-type: text/html;charset=utf-8');
+// Un avertissement affiché au milieu du .xlsx rend le fichier illisible
+ini_set('display_errors', '0');
+set_time_limit(600);
 
 
 
@@ -92,6 +95,37 @@ function cellColor($newsheet, $cells, $color)
 			'rgb' => $color,
 		],
 	]);
+}
+
+// Titre de feuille Excel valide : 31 caractères max, sans \ / ? * [ ] : (ex. CVS "DELVAUX/Ngaliema"), et unique
+$sheet_titles_used = array();
+function uniqueSheetTitle(&$used, $title)
+{
+	// Excel interdit aussi l'apostrophe en début / fin de titre
+	$title = trim(str_replace(array('\\', '/', '?', '*', '[', ']', ':'), '_', (string)$title), "'");
+	if (trim($title) === '') {
+		$title = 'CVS';
+	}
+	$base = mb_substr($title, 0, 31);
+	$title = $base;
+	$n = 2;
+	while (isset($used[mb_strtolower($title)])) {
+		$suffix = ' (' . $n++ . ')';
+		$title = mb_substr($base, 0, 31 - mb_strlen($suffix)) . $suffix;
+	}
+	$used[mb_strtolower($title)] = true;
+	return $title;
+}
+
+// Caches des libellés (évite une requête par ligne)
+$cache_labels = array();
+function cachedLabel(&$cache, $type, $code, $loader)
+{
+	$code = (string)$code;
+	if (!isset($cache[$type][$code])) {
+		$cache[$type][$code] = $code === '' ? '' : (string)$loader($code);
+	}
+	return $cache[$type][$code];
 }
 
 if (in_array($MULTI_ACCESS_SITE_CODE, $site)) {
@@ -195,10 +229,21 @@ foreach ($liste_site as $site_item) {
 	//echo 'Date impression:  ' . date('m/d/Y');  
 	// echo 'Liste des compteurs contrôlés du '. $du_ .' au '. $au_; 
 	//ITERATION DATA IINSTALL FOR CURRENT SITE
+	// Lignes de toutes les CVS du site, puis leurs fraudes en quelques requêtes
+	$data_par_cvs = array();
+	$refs_controle = array();
+	foreach ($cvs_list as $cvs_item) {
+		$data_par_cvs[$cvs_item["code"]] = $cls_report->getCVS_CompteursFraude($cvs_item["code"], $du, $au);
+		foreach ($data_par_cvs[$cvs_item["code"]] as $r_) {
+			$refs_controle[] = $r_["ref_fiche_controle"];
+		}
+	}
+	$fraudes_obs = $cls_report->GetFraudesObservationsControles($refs_controle);
+
 	foreach ($cvs_list as $cvs_item) {
 
 		//RECUPERATION LISTE DES COMPTEURS CONTROLES POUR LE CURRENT CVS AND GIVEN PERIOD 
-		$data_ = $cls_report->getCVS_CompteursFraude($cvs_item["code"], $du, $au);
+		$data_ = $data_par_cvs[$cvs_item["code"]];
 		$nb_data_ = count($data_);
 		if ($nb_data_ > 0) {
 
@@ -208,7 +253,7 @@ foreach ($liste_site as $site_item) {
 
 			// Rename worksheet
 
-			$newsheet->setTitle($cvs_item["libelle"]);
+			$newsheet->setTitle(uniqueSheetTitle($sheet_titles_used, $cvs_item["libelle"]));
 
 			$rowNumber = 1; //start in row 1
 
@@ -283,125 +328,114 @@ foreach ($liste_site as $site_item) {
 			// $rowNumber = 1; //start in row 1
 
 			$col = 'B'; // start at column A 
+			$startDataRow = $rowNumber;
 
 			foreach ($data_ as $row_) {
 				$col = 'A'; // start at column A
 
-				$cvs->code = $row_["cvs_id"];
-				$cvs->GetDetailIN();
+				$cvs_libelle = cachedLabel($cache_labels, 'cvs', $row_["cvs_id"], function ($c) use ($cvs) {
+					$cvs->code = $c;
+					$cvs->GetDetailIN();
+					return $cvs->libelle;
+				});
 				$E_item = $adresseItem->GetAdressInfo($row_["adresse_id"]);
-				$numero =  $E_item['numero'];
-				$avenue =  $adresseItem->GetLabel($E_item['avenue']);
-				$quartier_ = $adresseItem->GetLabel($E_item['quartier_id']);
+				if (!is_array($E_item)) {
+					$E_item = array();
+				}
+				$numero =  $E_item['numero'] ?? '';
+				$avenue =  cachedLabel($cache_labels, 'entite', $E_item['avenue'] ?? '', array($adresseItem, 'GetLabel'));
+				$quartier_ = cachedLabel($cache_labels, 'entite', $E_item['quartier_id'] ?? '', array($adresseItem, 'GetLabel'));
 
 				// $newsheet->setCellValue($col.$rowNumber,$ctr_context);
 				$newsheet->setCellValue($col . $rowNumber, $row_["ref_fiche_controle"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $quartier_);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
-				$newsheet->setCellValue($col . $rowNumber, $cvs->libelle);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $cvs_libelle);
 				$col++;
 
 
 				$newsheet->setCellValue($col . $rowNumber, $avenue . ' ' . $numero);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["nom_client_blue"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["p_a"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["tarif_identif"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 
 
 				//RECUPERATION INFOS FOUND INSTALL DURING CONTROLES
 				$row_install = $Installation->GetDetail_Light($row_["ref_last_install_found"]);
-				$marquecompteur->code = $row_install["marque_compteur"];
-				$marquecompteur->GetDetailIN();
+				if (!is_array($row_install)) {
+					// Contrôle sans installation retrouvée : colonnes installation vides (au lieu d'avertissements PHP)
+					$row_install = array();
+				}
+				$marque_libelle = cachedLabel($cache_labels, 'marque', $row_install["marque_compteur"] ?? '', function ($c) use ($marquecompteur) {
+					$marquecompteur->code = $c;
+					$marquecompteur->GetDetailIN();
+					return $marquecompteur->libelle;
+				});
 
 
 
-				$newsheet->setCellValue($col . $rowNumber, $marquecompteur->libelle);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $marque_libelle);
 				$col++;
 
-				$newsheet->setCellValue($col . $rowNumber, $row_install["numero_compteur"]);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $row_install["numero_compteur"] ?? null);
 				$col++;
 
-				$newsheet->setCellValue($col . $rowNumber, $row_install["date_fin_installation_fr"]);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $row_install["date_fin_installation_fr"] ?? null);
 				$col++;
 
-				$newsheet->setCellValue($col . $rowNumber, $row_install["scelle_un_cpteur"]);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $row_install["scelle_un_cpteur"] ?? null);
 				$col++;
 
-				$newsheet->setCellValue($col . $rowNumber, $row_install["scelle_deux_coffret"]);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $row_install["scelle_deux_coffret"] ?? null);
 				$col++;
 
-				$newsheet->setCellValue($col . $rowNumber, $row_install["date_pose_scelle_fr"]);
-				cellBorder($newsheet, $col . $rowNumber);
+				$newsheet->setCellValue($col . $rowNumber, $row_install["date_pose_scelle_fr"] ?? null);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["scelle_compteur_poser"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["scelle_coffret_poser"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["scelle_cpt_existant"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["scelle_coffret_existant"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["numero_serie_cpteur"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["cas_de_fraude"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 
-				$item_ctl->ref_fiche_controle = $row_["ref_fiche_controle"];
-				$data = $item_ctl->GetDetail($utilisateur->id_service_group);
-				$type_fraudes = "";
+				$labelFraude = function ($c) use ($typeFraude) {
+					$typeFraude->code = $c;
+					$typeFraude->GetDetailIN();
+					return $typeFraude->code_label;
+				};
 
 				$lst_fraudes_selected = "";
 				//COMPATIBILITY MODE	
 				if (!empty($row_["type_fraude"])) {
-					$typeFraude->code = $row_['type_fraude'];
-					$typeFraude->GetDetailIN();
-					// $lst_fraudes_selected .=$value_['ref_code_fraude'] . "-";
-					$lst_fraudes_selected .= $typeFraude->code_label . "-";
+					$lst_fraudes_selected .= cachedLabel($cache_labels, 'fraude', $row_['type_fraude'], $labelFraude) . "-";
 				}
-				if (!empty($data['fraudes'])) {
-					foreach ($data['fraudes'] as $value_) {
-						$typeFraude->code = $value_['ref_code_fraude'];
-						$typeFraude->GetDetailIN();
-						// $lst_fraudes_selected .=$value_['ref_code_fraude'] . "-";
-						$lst_fraudes_selected .= $typeFraude->code_label . "-";
-					}
+				foreach (($fraudes_obs['fraudes'][$row_["ref_fiche_controle"]] ?? array()) as $code_) {
+					$lst_fraudes_selected .= cachedLabel($cache_labels, 'fraude', $code_, $labelFraude) . "-";
 				}
 				$type_fraudes =  rtrim($lst_fraudes_selected, "-");
 
@@ -412,32 +446,25 @@ foreach ($liste_site as $site_item) {
 
 				// $newsheet->setCellValue($col.$rowNumber,$typeFraude->libelle);
 				$newsheet->setCellValue($col . $rowNumber, $type_fraudes . " ");
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["etat_du_compteur"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["date_de_dernier_ticket_rentre"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["qte_derniers_kwh_rentre"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["credit_restant"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["tarif_controle"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				$newsheet->setCellValue($col . $rowNumber, $row_["autocollant_place_controleur"]);
-				cellBorder($newsheet, $col . $rowNumber);
 				$col++;
 
 				/*$newsheet->setCellValue($col.$rowNumber,$row_["observation"]);
@@ -448,6 +475,12 @@ foreach ($liste_site as $site_item) {
 				$rowNumber++;
 
 				$ctr_context++;
+			}
+			// Bordures appliquées en une fois sur les lignes de la feuille (colonnes A à Z)
+			if ($rowNumber > $startDataRow) {
+				$newsheet->getStyle('A' . $startDataRow . ':Z' . ($rowNumber - 1))->applyFromArray([
+					'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]],
+				]);
 			}
 		}
 	}
