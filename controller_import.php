@@ -137,14 +137,25 @@ function extractionCompteurControlXLS($user)
 					$r[] = $cell->getValue();
 				}
 
-				if (empty(trim($r[0])) || empty(trim($r[1]))) {
-					break;
-				}
+				$message = array(); // une notification par ligne (évite de reprendre les clés de la ligne précédente)
+				$cell_compteur = trim((string)($r[0] ?? ''));
+				$cell_controleur = trim((string)($r[1] ?? ''));
 
-				if (strtolower($ext) == "xls") {
-					if ($row->getRowIndex() == 1) continue; // skip first row
-				} else if (strtolower($ext) == "xlsx") {
-					if ($row->getRowIndex() == 0) continue; // skip first row
+				// Ligne vide : on passe à la suivante (avant, une seule ligne vide arrêtait tout l'import)
+				if ($cell_compteur === '' && $cell_controleur === '') {
+					continue;
+				}
+				// Ligne d'entête (ex. "Numéro compteur | Contrôleur") : pas de chiffre dans la 1re colonne
+				if (!preg_match('/\d/', $cell_compteur)) {
+					continue;
+				}
+				if ($cell_controleur === '') {
+					$error_count++;
+					$message["compteur"] = $cell_compteur;
+					$message["error_type"] = "error";
+					$message["error_message"] = "Nom du contrôleur manquant (colonne B)";
+					$messages["error_list"][] = $message;
+					continue;
 				}
 
 		$Numero_compteur = isset($r[0]) ? trim($r[0]) : '';
@@ -198,7 +209,16 @@ if (
 						$compteur_item = $resultat["items"][0];
 						$data = $compteur_item["data"];
 						$adresseTexte = $compteur_item["adresseTexte"];
-						$value = $data["id_"];
+						// Fiche d'identification (compteur trouvé sur la fiche ou via son installation)
+						$value = $data["id_"] ?? ($data["ref_identific"] ?? '');
+						if ($value === null || $value === '') {
+							$error_count++;
+							$message["compteur"] = $Numero_compteur;
+							$message["error_type"] = "error";
+							$message["error_message"] = "Fiche d'identification introuvable pour ce compteur";
+							$messages["error_list"][] = $message;
+							continue;
+						}
 
 						$Nom_complet_Controleur = trim(strip_tags($Nom_complet_Controleur));
 						$stmt_user_detail->bindParam(1, $Nom_complet_Controleur);
@@ -233,8 +253,8 @@ if (
 							} else {
 								$error_count++;
 								$message["compteur"] = $Numero_compteur;
-								$message["erro_type"] = "warning";
-								$message["erro_message"] = "Compteur a déjà une assignation valide";
+								$message["error_type"] = "warning";
+								$message["error_message"] = "Compteur a déjà une assignation valide";
 								$messages["error_list"][] = $message;
 							}
 						} else {

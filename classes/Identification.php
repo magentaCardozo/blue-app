@@ -1575,6 +1575,10 @@ public function GetCompteurAdresseForControl($num_compteur, $user_context)
      * L'adresse provient donc de t_main_data.adresse_id.
      */
 
+    // Jointures utilisateurs / organisme / entités d'adresse en LEFT JOIN : aucune de leurs
+    // colonnes n'est utilisée, et une jointure obligatoire écartait les fiches dont
+    // l'identificateur, le chef d'équipe ou une entité d'adresse a été supprimé
+    // (compteur alors déclaré "Non trouvé" à l'import d'assignation en masse).
     $query_main = "
         SELECT
             md.id_,
@@ -1625,25 +1629,25 @@ public function GetCompteurAdresseForControl($num_compteur, $user_context)
         INNER JOIN t_log_adresses AS la
             ON md.adresse_id = la.id
 
-        INNER JOIN t_param_adresse_entity AS e_quartier
+        LEFT JOIN t_param_adresse_entity AS e_quartier
             ON la.quartier_id = e_quartier.`code`
 
-        INNER JOIN t_param_adresse_entity AS e_commune
+        LEFT JOIN t_param_adresse_entity AS e_commune
             ON la.commune_id = e_commune.`code`
 
-        INNER JOIN t_param_adresse_entity AS e_ville
+        LEFT JOIN t_param_adresse_entity AS e_ville
             ON la.ville_id = e_ville.`code`
 
-        INNER JOIN t_utilisateurs AS u
+        LEFT JOIN t_utilisateurs AS u
             ON md.identificateur = u.code_utilisateur
 
-        INNER JOIN t_utilisateurs AS chef
+        LEFT JOIN t_utilisateurs AS chef
             ON md.chef_equipe = chef.code_utilisateur
 
-        INNER JOIN t_param_organisme AS po
+        LEFT JOIN t_param_organisme AS po
             ON md.id_equipe_identification = po.ref_organisme
 
-        INNER JOIN t_param_adresse_entity AS e_avenue
+        LEFT JOIN t_param_adresse_entity AS e_avenue
             ON la.avenue = e_avenue.`code`
 
         INNER JOIN t_param_identite AS ic
@@ -1706,6 +1710,7 @@ public function GetCompteurAdresseForControl($num_compteur, $user_context)
                 li.id_install,
 
                 li.ref_identific,
+                li.ref_identific AS id_,
 
                 li.numero_compteur AS num_compteur_actuel,
 
